@@ -23,7 +23,10 @@
   e.preventDefault(); const button=login.querySelector('button[type=submit]'),msg=$('#loginMessage');
   const username=$('#username').value.trim(),password=$('#password').value;if(!username||!password)return;
   button.disabled=true;msg.textContent='Verificando credenciales…';msg.classList.remove('error');
-  try{const result=await api('login',{username,password});if(!result?.ok||!result.token){msg.textContent=result?.error==='INVALID_CREDENTIALS'?'Usuario o contraseña incorrectos.':'No se pudo validar el acceso.';msg.classList.add('error');return;}sessionStorage.setItem(TOKEN_KEY,result.token);sessionStorage.setItem(USER_KEY,JSON.stringify(result.user||{}));location.href='panel.html';}
+  try{const result=await api('login',{username,password});if(!result?.ok||!result.token){msg.textContent=result?.error==='INVALID_CREDENTIALS'?'Usuario o contraseña incorrectos.':'No se pudo validar el acceso.';msg.classList.add('error');return;}sessionStorage.setItem(TOKEN_KEY,result.token);sessionStorage.setItem(USER_KEY,JSON.stringify(result.user||{}));
+      
+  const role = String(result.user?.role || '').toLowerCase();
+  location.href = role === 'admin' ? 'admin.html' : 'panel.html';}
   catch(err){console.error(err);msg.textContent='No se pudo conectar con la API. Comprueba la publicación de Apps Script y la conexión del sitio.';msg.classList.add('error');}
   finally{button.disabled=false;}
  });
