@@ -1,13 +1,29 @@
 (() => {
  const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
- const KEY='vferia_demo_profile', safeUrl=v=>/^https?:\/\//i.test((v||'').trim());
+ const API_URL='https://script.google.com/macros/s/AKfycbzdKI-wK6Ao08bjpRhH_M_yDeFA7CgnMJuLtrUnIqiEGWYxnzhDWiqZtmYtvShytZE-lQ/exec';
+ const KEY='vferia_demo_profile', TOKEN_KEY='vferia_api_token', USER_KEY='vferia_api_user', safeUrl=v=>/^https?:\/\//i.test((v||'').trim());
+ async function api(action, payload={}) {
+  const response = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action,...payload}), redirect:'follow'});
+  if (!response.ok) throw new Error('HTTP_'+response.status);
+  return await response.json();
+ }
  const esc=v=>String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const money=v=>Number(v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
  const login=$('#loginForm');
- if(login) login.addEventListener('submit',e=>{e.preventDefault();if(!$('#username').value.trim()||!$('#password').value)return;sessionStorage.setItem('vferia_demo_user',$('#username').value.trim());location.href='panel.html';});
+ if(login) login.addEventListener('submit',async e=>{
+  e.preventDefault(); const button=login.querySelector('button[type=submit]'), msg=$('#loginMessage');
+  const username=$('#username').value.trim(), password=$('#password').value; if(!username||!password)return;
+  button.disabled=true; msg.textContent='Verificando credenciales…'; msg.classList.remove('error');
+  try { const result=await api('login',{username,password}); if(!result||!result.ok||!result.token) { msg.textContent=result&&result.error==='INVALID_CREDENTIALS'?'Usuario o contraseña incorrectos.':'No se pudo validar el acceso. Revisa tus credenciales.'; msg.classList.add('error'); return; }
+   sessionStorage.setItem(TOKEN_KEY,result.token); sessionStorage.setItem(USER_KEY,JSON.stringify(result.user||{})); location.href='panel.html';
+  } catch(err) { console.error(err); msg.textContent='No se pudo conectar con la API. Comprueba la publicación de Apps Script y la configuración CORS.'; msg.classList.add('error'); }
+  finally { button.disabled=false; }
+ });
  if($('#sellerForm')){
-  if(!sessionStorage.getItem('vferia_demo_user')){location.replace('login.html');return;}
+  const token=sessionStorage.getItem(TOKEN_KEY);
+  if(!token){location.replace('login.html');return;}
   const form=$('#sellerForm'),list=$('#productsList'),template=$('#productTemplate'),status=$('#saveStatus'),counter=$('#productCounter'),addBtn=$('#addProductBtn');
+  api('me',{token}).then(r=>{if(!r||!r.ok){sessionStorage.removeItem(TOKEN_KEY);sessionStorage.removeItem(USER_KEY);location.replace('login.html');}}).catch(err=>{console.error(err);status.textContent='No se pudo verificar la sesión con la API. Recarga o vuelve a iniciar sesión.';});
   const overlay=$('#imageEditor'),canvas=$('#editorCanvas'),ctx=canvas.getContext('2d');let logoData='',sourceImage=null,job=null;
   const dirty=()=>status.textContent='Hay cambios sin guardar.';
   function count(){let n=$$('.product-editor',list).length;counter.textContent=`${n} / 30`;addBtn.disabled=n>=30;addBtn.style.opacity=n>=30?'.45':'1';}
@@ -21,7 +37,7 @@
   function collect(){let d={};$$('input[name],textarea[name],select[name]',form).forEach(e=>d[e.name]=e.value);d.logoData=logoData;d.products=$$('.product-editor',list).map(c=>({name:$('.p-name',c).value,price:$('.p-price',c).value,link:$('.p-link',c).value,social:$('.p-social',c).value,description:$('.p-description',c).value,imageData:$('.p-image-data',c).value}));return d;}
   function save(){try{localStorage.setItem(KEY,JSON.stringify(collect()));status.textContent=`Guardado en este navegador · ${new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}`;return true;}catch(e){status.textContent='No se pudo guardar: el navegador agotó el espacio local. Reduce la cantidad o el tamaño de imágenes.';return false;}}
   function load(){try{let d=JSON.parse(localStorage.getItem(KEY)||'null');if(!d){addProduct();return;}Object.entries(d).forEach(([k,v])=>{let el=form.elements.namedItem(k);if(el&&typeof v==='string')el.value=v;});logoData=d.logoData||'';if(logoData){$('#logoPreview').src=logoData;$('#logoPreview').hidden=false;}if(d.products&&d.products.length)d.products.slice(0,30).forEach(addProduct);else addProduct();status.textContent='Se cargaron los datos guardados en este navegador.';}catch(e){addProduct();}}
-  addBtn.addEventListener('click',()=>addProduct());$('#saveAllBtn').addEventListener('click',save);form.addEventListener('submit',e=>{e.preventDefault();save();});form.addEventListener('input',dirty);$('#logoutBtn').addEventListener('click',()=>{sessionStorage.removeItem('vferia_demo_user');location.href='login.html';});
+  addBtn.addEventListener('click',()=>addProduct());$('#saveAllBtn').addEventListener('click',save);form.addEventListener('submit',e=>{e.preventDefault();save();});form.addEventListener('input',dirty);$('#logoutBtn').addEventListener('click',async()=>{const token=sessionStorage.getItem(TOKEN_KEY);try{if(token)await api('logout',{token});}catch(err){console.warn('No se pudo cerrar la sesión en el servidor',err);}sessionStorage.removeItem(TOKEN_KEY);sessionStorage.removeItem(USER_KEY);location.href='login.html';});
   let lf=$('#logoFile'),pickLogo=()=>lf.click();$('#chooseLogo').addEventListener('click',pickLogo);$('#chooseLogoText').addEventListener('click',pickLogo);lf.addEventListener('change',()=>{if(lf.files[0])openEditor(lf.files[0],{kind:'logo'});lf.value='';});load();
  }
  if($('#storefront')){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null');}catch(e){}let root=$('#storefront');if(!d){root.innerHTML='<div class="empty-store"><div class="empty-store-icon">▦</div><h2>Tu tienda está esperando sus productos</h2><p>Vuelve al panel, añade productos y guarda los cambios para verlos aquí.</p><a class="btn btn-primary" href="panel.html">Volver al panel →</a></div>';}else{let ps=Array.isArray(d.products)?d.products:[];root.innerHTML=`<section class="store-hero">${d.logoData?`<img class="store-logo" src="${d.logoData}" alt="Logo empresarial">`:''}<div><span class="eyebrow">ESPACIO DE EMPRENDEDOR · MUESTRA</span><h1>${esc(d.businessName||'Mi emprendimiento')}</h1><p>${esc(d.businessDescription||'Descubre nuestros productos y conoce nuestra propuesta.')}</p><div class="store-meta">${esc(d.category||'Emprendimiento')}${d.city?' · '+esc(d.city):''}</div></div></section><section class="store-products"><div class="store-section-head"><div><span class="eyebrow">CATÁLOGO</span><h2>Nuestros productos</h2></div><span class="counter">${ps.length} productos</span></div><div class="store-grid">${ps.map(p=>{let url=safeUrl(p.link)?p.link:(safeUrl(p.social)?p.social:'#');return `<article class="store-product">${p.imageData?`<img class="store-product-image" src="${p.imageData}" alt="${esc(p.name||'Producto')}">`:'<div class="store-product-placeholder">Imagen del producto</div>'}<div class="store-product-body"><h3>${esc(p.name||'Producto sin nombre')}</h3><strong>${p.price?money(p.price):'Consultar precio'}</strong><p>${esc(p.description||'Consulta para conocer más detalles de este producto.')}</p>${url!=='#'?`<a class="btn btn-primary store-buy" href="${url}" target="_blank" rel="noopener">Ver producto en línea ↗</a>`:'<span class="store-no-link">Añade un enlace de venta desde el panel</span>'}</div></article>`;}).join('')}</div></section>`;}}
