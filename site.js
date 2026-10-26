@@ -1,70 +1,697 @@
+
 (() => {
  const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
  const API_URL='https://script.google.com/macros/s/AKfycbzdKI-wK6Ao08bjpRhH_M_yDeFA7CgnMJuLtrUnIqiEGWYxnzhDWiqZtmYtvShytZE-lQ/exec';
  const TOKEN_KEY='vferia_api_token', USER_KEY='vferia_api_user';
  const safeUrl=v=>/^https?:\/\//i.test((v||'').trim());
+
  async function api(action,payload={}) {
-  const response=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,...payload}),redirect:'follow'});
+  const response=await fetch(API_URL,{
+   method:'POST',
+   headers:{'Content-Type':'text/plain;charset=utf-8'},
+   body:JSON.stringify({action,...payload}),
+   redirect:'follow'
+  });
   if(!response.ok) throw new Error('HTTP_'+response.status);
   return response.json();
  }
- const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const money=v=>Number(v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
+
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+ }[c]));
+
+ const money=v=>Number(v||0).toLocaleString('es-CL',{
+  style:'currency',currency:'CLP',maximumFractionDigits:0
+ });
+
  const token=()=>sessionStorage.getItem(TOKEN_KEY)||'';
- function clearSession(){sessionStorage.removeItem(TOKEN_KEY);sessionStorage.removeItem(USER_KEY);}
+
+ function clearSession(){
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(USER_KEY);
+ }
+
  const adminUsersLink=$('#adminUsersLink');
+
  if(adminUsersLink){
   let currentUser={};
-  try{currentUser=JSON.parse(sessionStorage.getItem(USER_KEY)||'{}')}catch{}
-  if(String(currentUser.role||'').toLowerCase()==='admin') adminUsersLink.hidden=false;
+  try{
+   currentUser=JSON.parse(sessionStorage.getItem(USER_KEY)||'{}');
+  }catch{}
+  if(String(currentUser.role||'').toLowerCase()==='admin'){
+   adminUsersLink.hidden=false;
+  }
  }
+
  const login=$('#loginForm');
+
  if(login) login.addEventListener('submit',async e=>{
-  e.preventDefault(); const button=login.querySelector('button[type=submit]'),msg=$('#loginMessage');
-  const username=$('#username').value.trim(),password=$('#password').value;if(!username||!password)return;
-  button.disabled=true;msg.textContent='Verificando credenciales…';msg.classList.remove('error');
-  try{const result=await api('login',{username,password});if(!result?.ok||!result.token){msg.textContent=result?.error==='INVALID_CREDENTIALS'?'Usuario o contraseña incorrectos.':'No se pudo validar el acceso.';msg.classList.add('error');return;}sessionStorage.setItem(TOKEN_KEY,result.token);sessionStorage.setItem(USER_KEY,JSON.stringify(result.user||{}));
-      
-  const role = String(result.user?.role || '').toLowerCase();
-  location.href = role === 'admin' ? 'admin.html' : 'panel.html';}
-  catch(err){console.error(err);msg.textContent='No se pudo conectar con la API. Comprueba la publicación de Apps Script y la conexión del sitio.';msg.classList.add('error');}
-  finally{button.disabled=false;}
+  e.preventDefault();
+
+  const button=login.querySelector('button[type=submit]');
+  const msg=$('#loginMessage');
+  const username=$('#username').value.trim();
+  const password=$('#password').value;
+
+  if(!username||!password)return;
+
+  button.disabled=true;
+  msg.textContent='Verificando credenciales…';
+  msg.classList.remove('error');
+
+  try{
+   const result=await api('login',{username,password});
+
+   if(!result?.ok||!result.token){
+    msg.textContent=result?.error==='INVALID_CREDENTIALS'
+     ?'Usuario o contraseña incorrectos.'
+     :'No se pudo validar el acceso.';
+    msg.classList.add('error');
+    return;
+   }
+
+   sessionStorage.setItem(TOKEN_KEY,result.token);
+   sessionStorage.setItem(USER_KEY,JSON.stringify(result.user||{}));
+
+   const role=String(result.user?.role||'').toLowerCase();
+   location.href=role==='admin'?'admin.html':'panel.html';
+
+  }catch(err){
+   console.error(err);
+   msg.textContent='No se pudo conectar con la API. Comprueba la publicación de Apps Script y la conexión del sitio.';
+   msg.classList.add('error');
+
+  }finally{
+   button.disabled=false;
+  }
  });
+
  if($('#sellerForm')){
-  const form=$('#sellerForm'),list=$('#productsList'),template=$('#productTemplate'),status=$('#saveStatus'),counter=$('#productCounter'),addBtn=$('#addProductBtn'),user=(()=>{try{return JSON.parse(sessionStorage.getItem(USER_KEY)||'{}')}catch{return {}}})();
-  if(!token()){location.replace('login.html');return;}
-  const alert=$('.prototype-alert');if(alert){alert.innerHTML='<span>✓</span><p><b>Conectado a VFeria:</b> los datos se guardan en el servidor. Recuerda guardar tus cambios.</p>';}
-  const overlay=$('#imageEditor'),canvas=$('#editorCanvas'),ctx=canvas.getContext('2d');let logoData='',logoKey='',logoUrl='',sourceImage=null,job=null,loading=true;
-  const dirty=()=>{status.textContent='Hay cambios sin guardar.';};
-  function count(){const n=$$('.product-editor',list).length;counter.textContent=`${n} / 30`;addBtn.disabled=n>=30;addBtn.style.opacity=n>=30?'.45':'1';}
-  function drawEditor(){if(!sourceImage||!job)return;const w=job.kind==='logo'?1080:1000,h=job.kind==='logo'?540:1000;canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);const mode=$('#editorMode').value,zoom=Number($('#editorZoom').value||1),iw=sourceImage.naturalWidth,ih=sourceImage.naturalHeight;const scale=(mode==='cover'?Math.max(w/iw,h/ih):Math.min(w/iw,h/ih))*zoom,dw=iw*scale,dh=ih*scale;if(job.kind==='logo'&&mode==='contain'){ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);}ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(sourceImage,(w-dw)/2,(h-dh)/2,dw,dh);}
-  function openEditor(file,newJob){if(!file||!file.type.startsWith('image/'))return;if(file.size>15*1024*1024){status.textContent='La imagen original debe pesar menos de 15 MB.';return;}job=newJob;const reader=new FileReader();reader.onload=()=>{sourceImage=new Image();sourceImage.onload=()=>{$('#editorTitle').textContent=job.kind==='logo'?'Ajustar logo empresarial':'Ajustar imagen del producto';$('#editorSubtitle').textContent=job.kind==='logo'?'Formato 2:1 · salida 1080 × 540 px; recomendado mínimo 740 × 370.':'Formato cuadrado · salida 1000 × 1000 px; recomendado mínimo 300 × 300.';$('#editorZoom').value='1';$('#editorMode').value='cover';overlay.hidden=false;document.body.classList.add('editor-open');drawEditor();};sourceImage.onerror=()=>status.textContent='No se pudo leer la imagen. Prueba JPG, PNG o WEBP.';sourceImage.src=reader.result;};reader.readAsDataURL(file);}
-  function closeEditor(){overlay.hidden=true;document.body.classList.remove('editor-open');sourceImage=null;job=null;}
-  $('#editorMode').addEventListener('change',drawEditor);$('#editorZoom').addEventListener('input',drawEditor);$('#closeEditor').addEventListener('click',closeEditor);$('#cancelEditor').addEventListener('click',closeEditor);overlay.addEventListener('click',e=>{if(e.target===overlay)closeEditor();});
-  $('#applyEditor').addEventListener('click',()=>{if(!sourceImage||!job)return;const out=document.createElement('canvas');out.width=job.kind==='logo'?1080:1000;out.height=job.kind==='logo'?540:1000;out.getContext('2d').drawImage(canvas,0,0,out.width,out.height);const data=out.toDataURL('image/jpeg',job.kind==='logo'?.84:.80);if(job.kind==='logo'){logoData=data;logoKey='';logoUrl='';$('#logoPreview').src=data;$('#logoPreview').hidden=false;}else{const c=job.card;$('.p-image-data',c).value=data;$('.p-image-key',c).value='';$('.p-image-url',c).value='';$('.p-preview',c).src=data;$('.p-preview',c).hidden=false;$('.product-thumb',c).innerHTML=`<img src="${data}" alt="">`;}closeEditor();dirty();});
-  function refresh(card){const name=$('.p-name',card).value.trim()||'Nuevo producto',url=$('.p-link',card).value.trim(),social=$('.p-social',card).value.trim(),a=$('.whatsapp-preview',card);$('.product-title',card).textContent=name;const target=safeUrl(url)?url:(safeUrl(social)?social:'#');a.href=target;a.textContent=target==='#'?'Añade un enlace de venta':'Abrir enlace de venta ↗';a.style.opacity=target==='#'?'.45':'1';}
-  function addProduct(d={}){if($$('.product-editor',list).length>=30)return;const c=template.content.firstElementChild.cloneNode(true);$('.p-name',c).value=d.name||'';$('.p-price',c).value=d.price??'';$('.p-link',c).value=d.link||'';$('.p-social',c).value=d.social||'';$('.p-description',c).value=d.description||'';$('.p-product-id',c).value=d.productId||'';$('.p-image-key',c).value=d.imageKey||'';$('.p-image-url',c).value=d.imageUrl||'';const image=d.imageUrl||d.imageData||'';if(image){$('.p-preview',c).src=image;$('.p-preview',c).hidden=false;$('.product-thumb',c).innerHTML=`<img src="${image}" alt="">`;}list.appendChild(c);c.addEventListener('input',()=>{refresh(c);dirty();});$('.remove-product',c).addEventListener('click',async()=>{const id=$('.p-product-id',c).value;if(id){status.textContent='Eliminando producto…';try{const r=await api('deleteProduct',{token:token(),productId:id});if(!r.ok)throw new Error(r.error||'DELETE_FAILED');}catch(err){console.error(err);status.textContent='No se pudo eliminar el producto del servidor.';return;}}c.remove();count();dirty();});const fi=$('.p-file',c),pick=()=>fi.click();$('.p-upload-button',c).addEventListener('click',pick);$('.p-choose-image',c).addEventListener('click',pick);fi.addEventListener('change',()=>{if(fi.files[0])openEditor(fi.files[0],{kind:'product',card:c});fi.value='';});refresh(c);count();}
-  function formProfile(){const p={};['fullName','email','phone','city','businessName','category','businessDescription','businessWeb'].forEach(k=>p[k]=form.elements.namedItem(k)?.value||'');p.logoKey=logoKey;p.logoUrl=logoUrl;return p;}
-  async function uploadIfNeeded(data,kind){if(!data)return null;const r=await api('uploadImage',{token:token(),kind,base64:data});if(!r?.ok)throw new Error(r?.message||r?.error||'IMAGE_UPLOAD_FAILED');return r;}
-  async function saveAll(){if(!user.businessId){status.textContent='Esta cuenta no tiene un emprendimiento asociado. Crea o utiliza una cuenta de emprendedor antes de guardar.';return;}const saveBtn=$('#saveAllBtn'),submit=form.querySelector('button[type=submit]');saveBtn.disabled=true;submit.disabled=true;status.textContent='Guardando perfil y productos en VFeria…';try{
-    if(logoData){status.textContent='Subiendo logo…';const img=await uploadIfNeeded(logoData,'logo');logoKey=img.key;logoUrl=img.url;logoData='';}
-    const pr=await api('saveProfile',{token:token(),profile:formProfile()});if(!pr?.ok)throw new Error(pr?.message||pr?.error||'PROFILE_SAVE_FAILED');
-    const cards=$$('.product-editor',list);for(let i=0;i<cards.length;i++){const c=cards[i],imageData=$('.p-image-data',c).value;let imageKey=$('.p-image-key',c).value,imageUrl=$('.p-image-url',c).value;if(imageData){status.textContent=`Subiendo imagen del producto ${i+1} de ${cards.length}…`;const img=await uploadIfNeeded(imageData,'product');imageKey=img.key;imageUrl=img.url;$('.p-image-data',c).value='';$('.p-image-key',c).value=imageKey;$('.p-image-url',c).value=imageUrl;$('.p-preview',c).src=imageUrl;$('.product-thumb',c).innerHTML=`<img src="${imageUrl}" alt="">`;}
-      const product={productId:$('.p-product-id',c).value||'',name:$('.p-name',c).value.trim(),price:$('.p-price',c).value,link:$('.p-link',c).value.trim(),social:$('.p-social',c).value.trim(),description:$('.p-description',c).value.trim(),imageKey,imageUrl,published:false};if(!product.name&&!product.price&&!product.link&&!product.description&&!imageUrl)continue;status.textContent=`Guardando producto ${i+1} de ${cards.length}…`;const r=await api('saveProduct',{token:token(),product});if(!r?.ok)throw new Error(r?.message||r?.error||'PRODUCT_SAVE_FAILED');$('.p-product-id',c).value=r.product.productId;$('.p-image-key',c).value=r.product.imageKey||'';$('.p-image-url',c).value=r.product.imageUrl||'';
+  const form=$('#sellerForm');
+  const list=$('#productsList');
+  const template=$('#productTemplate');
+  const status=$('#saveStatus');
+  const counter=$('#productCounter');
+  const addBtn=$('#addProductBtn');
+
+  const user=(()=>{
+   try{
+    return JSON.parse(sessionStorage.getItem(USER_KEY)||'{}');
+   }catch{
+    return {};
+   }
+  })();
+
+  if(!token()){
+   location.replace('login.html');
+   return;
+  }
+
+  const alert=$('.prototype-alert');
+
+  if(alert){
+   alert.innerHTML='<span>✓</span><p><b>Conectado a VFeria:</b> los datos se guardan en el servidor. Recuerda guardar tus cambios.</p>';
+  }
+
+  const overlay=$('#imageEditor');
+  const canvas=$('#editorCanvas');
+  const ctx=canvas.getContext('2d');
+
+  let logoData='',logoKey='',logoUrl='',sourceImage=null,job=null;
+
+  const dirty=()=>status.textContent='Hay cambios sin guardar.';
+
+  function count(){
+   const n=$$('.product-editor',list).length;
+   counter.textContent=`${n} / 30`;
+   addBtn.disabled=n>=30;
+   addBtn.style.opacity=n>=30?'.45':'1';
+  }
+
+  function drawEditor(){
+   if(!sourceImage||!job)return;
+
+   const w=job.kind==='logo'?1080:1000;
+   const h=job.kind==='logo'?540:1000;
+
+   canvas.width=w;
+   canvas.height=h;
+   ctx.clearRect(0,0,w,h);
+
+   const mode=$('#editorMode').value;
+   const zoom=Number($('#editorZoom').value||1);
+   const iw=sourceImage.naturalWidth;
+   const ih=sourceImage.naturalHeight;
+
+   const scale=(mode==='cover'
+    ?Math.max(w/iw,h/ih)
+    :Math.min(w/iw,h/ih))*zoom;
+
+   const dw=iw*scale;
+   const dh=ih*scale;
+
+   if(job.kind==='logo'&&mode==='contain'){
+    ctx.fillStyle='#fff';
+    ctx.fillRect(0,0,w,h);
+   }
+
+   ctx.imageSmoothingEnabled=true;
+   ctx.imageSmoothingQuality='high';
+   ctx.drawImage(sourceImage,(w-dw)/2,(h-dh)/2,dw,dh);
+  }
+
+  function openEditor(file,newJob){
+   if(!file||!file.type.startsWith('image/'))return;
+
+   if(file.size>15*1024*1024){
+    status.textContent='La imagen original debe pesar menos de 15 MB.';
+    return;
+   }
+
+   job=newJob;
+
+   const reader=new FileReader();
+
+   reader.onload=()=>{
+    sourceImage=new Image();
+
+    sourceImage.onload=()=>{
+     $('#editorTitle').textContent=job.kind==='logo'
+      ?'Ajustar logo empresarial'
+      :'Ajustar imagen del producto';
+
+     $('#editorSubtitle').textContent=job.kind==='logo'
+      ?'Formato 2:1 · salida 1080 × 540 px; recomendado mínimo 740 × 370.'
+      :'Formato cuadrado · salida 1000 × 1000 px; recomendado mínimo 300 × 300.';
+
+     $('#editorZoom').value='1';
+     $('#editorMode').value='cover';
+     overlay.hidden=false;
+     document.body.classList.add('editor-open');
+     drawEditor();
+    };
+
+    sourceImage.onerror=()=>{
+     status.textContent='No se pudo leer la imagen. Prueba JPG, PNG o WEBP.';
+    };
+
+    sourceImage.src=reader.result;
+   };
+
+   reader.readAsDataURL(file);
+  }
+
+  function closeEditor(){
+   overlay.hidden=true;
+   document.body.classList.remove('editor-open');
+   sourceImage=null;
+   job=null;
+  }
+
+  $('#editorMode').addEventListener('change',drawEditor);
+  $('#editorZoom').addEventListener('input',drawEditor);
+  $('#closeEditor').addEventListener('click',closeEditor);
+  $('#cancelEditor').addEventListener('click',closeEditor);
+
+  overlay.addEventListener('click',e=>{
+   if(e.target===overlay)closeEditor();
+  });
+
+  $('#applyEditor').addEventListener('click',()=>{
+   if(!sourceImage||!job)return;
+
+   const out=document.createElement('canvas');
+   out.width=job.kind==='logo'?1080:1000;
+   out.height=job.kind==='logo'?540:1000;
+
+   out.getContext('2d').drawImage(canvas,0,0,out.width,out.height);
+
+   const data=out.toDataURL('image/jpeg',job.kind==='logo'?.84:.80);
+
+   if(job.kind==='logo'){
+    logoData=data;
+    logoKey='';
+    logoUrl='';
+    $('#logoPreview').src=data;
+    $('#logoPreview').hidden=false;
+
+   }else{
+    const c=job.card;
+
+    $('.p-image-data',c).value=data;
+    $('.p-image-key',c).value='';
+    $('.p-image-url',c).value='';
+    $('.p-preview',c).src=data;
+    $('.p-preview',c).hidden=false;
+    $('.product-thumb',c).innerHTML=`<img src="${data}" alt="">`;
+   }
+
+   closeEditor();
+   dirty();
+  });
+
+  function refresh(card){
+   const name=$('.p-name',card).value.trim()||'Nuevo producto';
+   const url=$('.p-link',card).value.trim();
+   const social=$('.p-social',card).value.trim();
+   const a=$('.whatsapp-preview',card);
+
+   $('.product-title',card).textContent=name;
+
+   const target=safeUrl(url)?url:(safeUrl(social)?social:'#');
+
+   a.href=target;
+   a.textContent=target==='#'?'Añade un enlace de venta':'Abrir enlace de venta ↗';
+   a.style.opacity=target==='#'?'.45':'1';
+  }
+
+  function addProduct(d={}){
+   if($$('.product-editor',list).length>=30)return;
+
+   const c=template.content.firstElementChild.cloneNode(true);
+
+   $('.p-name',c).value=d.name||'';
+   $('.p-price',c).value=d.price??'';
+   $('.p-link',c).value=d.link||'';
+   $('.p-social',c).value=d.social||'';
+   $('.p-description',c).value=d.description||'';
+   $('.p-product-id',c).value=d.productId||'';
+   $('.p-image-key',c).value=d.imageKey||'';
+   $('.p-image-url',c).value=d.imageUrl||'';
+
+   const image=d.imageUrl||d.imageData||'';
+
+   if(image){
+    $('.p-preview',c).src=image;
+    $('.p-preview',c).hidden=false;
+    $('.product-thumb',c).innerHTML=`<img src="${image}" alt="">`;
+   }
+
+   list.appendChild(c);
+
+   c.addEventListener('input',()=>{
+    refresh(c);
+    dirty();
+   });
+
+   $('.remove-product',c).addEventListener('click',async()=>{
+    const id=$('.p-product-id',c).value;
+
+    if(id){
+     status.textContent='Eliminando producto…';
+
+     try{
+      const r=await api('deleteProduct',{
+       token:token(),productId:id
+      });
+
+      if(!r.ok)throw new Error(r.error||'DELETE_FAILED');
+
+     }catch(err){
+      console.error(err);
+      status.textContent='No se pudo eliminar el producto del servidor.';
+      return;
+     }
     }
+
+    c.remove();
+    count();
+    dirty();
+   });
+
+   const fi=$('.p-file',c);
+   const pick=()=>fi.click();
+
+   $('.p-upload-button',c).addEventListener('click',pick);
+   $('.p-choose-image',c).addEventListener('click',pick);
+
+   fi.addEventListener('change',()=>{
+    if(fi.files[0]){
+     openEditor(fi.files[0],{kind:'product',card:c});
+    }
+    fi.value='';
+   });
+
+   refresh(c);
+   count();
+  }
+
+  function formProfile(){
+   const p={};
+
+   [
+    'fullName','email','phone','city',
+    'businessName','category','businessDescription','businessWeb'
+   ].forEach(k=>{
+    p[k]=form.elements.namedItem(k)?.value||'';
+   });
+
+   p.logoKey=logoKey;
+   p.logoUrl=logoUrl;
+
+   return p;
+  }
+
+  async function uploadIfNeeded(data,kind){
+   if(!data)return null;
+
+   const r=await api('uploadImage',{
+    token:token(),kind,base64:data
+   });
+
+   if(!r?.ok){
+    throw new Error(r?.message||r?.error||'IMAGE_UPLOAD_FAILED');
+   }
+
+   return r;
+  }
+
+  async function saveAll(){
+   if(!user.businessId){
+    status.textContent='Esta cuenta no tiene un emprendimiento asociado. Crea o utiliza una cuenta de emprendedor antes de guardar.';
+    return;
+   }
+
+   const saveBtn=$('#saveAllBtn');
+   const submit=form.querySelector('button[type=submit]');
+
+   saveBtn.disabled=true;
+   submit.disabled=true;
+   status.textContent='Guardando perfil y productos en VFeria…';
+
+   try{
+    if(logoData){
+     status.textContent='Subiendo logo…';
+
+     const img=await uploadIfNeeded(logoData,'logo');
+
+     logoKey=img.key;
+     logoUrl=img.url;
+     logoData='';
+    }
+
+    const pr=await api('saveProfile',{
+     token:token(),profile:formProfile()
+    });
+
+    if(!pr?.ok){
+     throw new Error(pr?.message||pr?.error||'PROFILE_SAVE_FAILED');
+    }
+
+    const cards=$$('.product-editor',list);
+
+    for(let i=0;i<cards.length;i++){
+     const c=cards[i];
+     const imageData=$('.p-image-data',c).value;
+
+     let imageKey=$('.p-image-key',c).value;
+     let imageUrl=$('.p-image-url',c).value;
+
+     if(imageData){
+      status.textContent=`Subiendo imagen del producto ${i+1} de ${cards.length}…`;
+
+      const img=await uploadIfNeeded(imageData,'product');
+
+      imageKey=img.key;
+      imageUrl=img.url;
+
+      $('.p-image-data',c).value='';
+      $('.p-image-key',c).value=imageKey;
+      $('.p-image-url',c).value=imageUrl;
+      $('.p-preview',c).src=imageUrl;
+      $('.product-thumb',c).innerHTML=`<img src="${imageUrl}" alt="">`;
+     }
+
+     const product={
+      productId:$('.p-product-id',c).value||'',
+      name:$('.p-name',c).value.trim(),
+      price:$('.p-price',c).value,
+      link:$('.p-link',c).value.trim(),
+      social:$('.p-social',c).value.trim(),
+      description:$('.p-description',c).value.trim(),
+      imageKey,
+      imageUrl,
+      published:false
+     };
+
+     if(!product.name&&!product.price&&!product.link&&!product.description&&!imageUrl)continue;
+
+     status.textContent=`Guardando producto ${i+1} de ${cards.length}…`;
+
+     const r=await api('saveProduct',{
+      token:token(),product
+     });
+
+     if(!r?.ok){
+      throw new Error(r?.message||r?.error||'PRODUCT_SAVE_FAILED');
+     }
+
+     $('.p-product-id',c).value=r.product.productId;
+     $('.p-image-key',c).value=r.product.imageKey||'';
+     $('.p-image-url',c).value=r.product.imageUrl||'';
+    }
+
     status.textContent='Cambios guardados en el servidor VFeria.';
-  }catch(err){console.error(err);status.textContent=String(err.message||'').includes('SESSION_EXPIRED')?'Tu sesión expiró. Vuelve a iniciar sesión.':'No se pudo completar el guardado: '+(err.message||'error de conexión')+'. Revisa la configuración del Worker si falló una imagen.';}finally{saveBtn.disabled=false;submit.disabled=false;}}
-  async function load(){status.textContent='Cargando información desde VFeria…';try{const me=await api('me',{token:token()});if(!me?.ok){clearSession();location.replace('login.html');return;}if(!me.user?.businessId){status.textContent='La sesión es válida, pero esta cuenta no tiene un emprendimiento asociado. Para guardar perfil y productos, inicia sesión con una cuenta de emprendedor vinculada a un businessId.';if(alert)alert.innerHTML='<span>!</span><p><b>Cuenta sin emprendimiento asociado:</b> tu usuario administrativo no tiene businessId. Para usar este panel necesitas una cuenta de emprendedor vinculada a un negocio.</p>';loading=false;return;}
-    const r=await api('getProfile',{token:token()});if(!r?.ok)throw new Error(r?.error||'PROFILE_LOAD_FAILED');const p=r.profile||{};['fullName','email','phone','city','businessName','category','businessDescription','businessWeb'].forEach(k=>{const el=form.elements.namedItem(k);if(el)el.value=p[k]||'';});logoKey=p.logoKey||'';logoUrl=p.logoUrl||'';if(logoUrl){$('#logoPreview').src=logoUrl;$('#logoPreview').hidden=false;}
-    const products=await api('listProducts',{token:token()});if(!products?.ok)throw new Error(products?.error||'PRODUCTS_LOAD_FAILED');list.innerHTML='';(products.products||[]).slice(0,30).forEach(addProduct);if(!products.products?.length)addProduct();status.textContent='Información cargada desde Google Sheets.';loading=false;
-  }catch(err){console.error(err);status.textContent='No se pudieron cargar los datos del servidor. Comprueba la API y vuelve a iniciar sesión si es necesario.';loading=false;}}
-  addBtn.addEventListener('click',()=>addProduct());$('#saveAllBtn').addEventListener('click',saveAll);form.addEventListener('submit',e=>{e.preventDefault();saveAll();});form.addEventListener('input',dirty);$('#logoutBtn').addEventListener('click',async()=>{try{if(token())await api('logout',{token:token()});}catch(err){console.warn('No se pudo cerrar la sesión en el servidor',err);}clearSession();location.href='login.html';});
-  const lf=$('#logoFile'),pickLogo=()=>lf.click();$('#chooseLogo').addEventListener('click',pickLogo);$('#chooseLogoText').addEventListener('click',pickLogo);lf.addEventListener('change',()=>{if(lf.files[0])openEditor(lf.files[0],{kind:'logo'});lf.value='';});
+
+   }catch(err){
+    console.error(err);
+
+    status.textContent=String(err.message||'').includes('SESSION_EXPIRED')
+     ?'Tu sesión expiró. Vuelve a iniciar sesión.'
+     :'No se pudo completar el guardado: '+(err.message||'error de conexión')+'. Revisa la configuración del Worker si falló una imagen.';
+
+   }finally{
+    saveBtn.disabled=false;
+    submit.disabled=false;
+   }
+  }
+
+  async function load(){
+   status.textContent='Cargando información desde VFeria…';
+
+   try{
+    const me=await api('me',{token:token()});
+
+    if(!me?.ok){
+     clearSession();
+     location.replace('login.html');
+     return;
+    }
+
+    if(!me.user?.businessId){
+     status.textContent='La sesión es válida, pero esta cuenta no tiene un emprendimiento asociado. Para guardar perfil y productos, inicia sesión con una cuenta de emprendedor vinculada a un businessId.';
+
+     if(alert){
+      alert.innerHTML='<span>!</span><p><b>Cuenta sin emprendimiento asociado:</b> tu usuario administrativo no tiene businessId. Para usar este panel necesitas una cuenta de emprendedor vinculada a un negocio.</p>';
+     }
+
+     return;
+    }
+
+    const r=await api('getProfile',{token:token()});
+
+    if(!r?.ok)throw new Error(r?.error||'PROFILE_LOAD_FAILED');
+
+    const p=r.profile||{};
+
+    [
+     'fullName','email','phone','city','businessName',
+     'category','businessDescription','businessWeb'
+    ].forEach(k=>{
+     const el=form.elements.namedItem(k);
+     if(el)el.value=p[k]||'';
+    });
+
+    logoKey=p.logoKey||'';
+    logoUrl=p.logoUrl||'';
+
+    if(logoUrl){
+     $('#logoPreview').src=logoUrl;
+     $('#logoPreview').hidden=false;
+    }
+
+    const products=await api('listProducts',{token:token()});
+
+    if(!products?.ok){
+     throw new Error(products?.error||'PRODUCTS_LOAD_FAILED');
+    }
+
+    list.innerHTML='';
+
+    (products.products||[]).slice(0,30).forEach(addProduct);
+
+    if(!products.products?.length)addProduct();
+
+    status.textContent='Información cargada desde Google Sheets.';
+
+   }catch(err){
+    console.error(err);
+
+    status.textContent='No se pudieron cargar los datos del servidor. Comprueba la API y vuelve a iniciar sesión si es necesario.';
+   }
+  }
+
+  addBtn.addEventListener('click',()=>addProduct());
+  $('#saveAllBtn').addEventListener('click',saveAll);
+
+  form.addEventListener('submit',e=>{
+   e.preventDefault();
+   saveAll();
+  });
+
+  form.addEventListener('input',dirty);
+
+  $('#logoutBtn').addEventListener('click',async()=>{
+   try{
+    if(token())await api('logout',{token:token()});
+   }catch(err){
+    console.warn('No se pudo cerrar la sesión en el servidor',err);
+   }
+
+   clearSession();
+   location.href='login.html';
+  });
+
+  const lf=$('#logoFile');
+  const pickLogo=()=>lf.click();
+
+  $('#chooseLogo').addEventListener('click',pickLogo);
+  $('#chooseLogoText').addEventListener('click',pickLogo);
+
+  lf.addEventListener('change',()=>{
+   if(lf.files[0])openEditor(lf.files[0],{kind:'logo'});
+   lf.value='';
+  });
+
   load();
  }
+
  if($('#storefront')){
-  const root=$('#storefront');let user={};try{user=JSON.parse(sessionStorage.getItem(USER_KEY)||'{}')}catch{}
-  if(!user.businessId){root.innerHTML='<div class="empty-store"><div class="empty-store-icon">▦</div><h2>Vista previa de tu tienda</h2><p>Inicia sesión con una cuenta vinculada a un emprendimiento y abre esta página para ver su identificador.</p><a class="btn btn-primary" href="login.html">Ir al inicio de sesión →</a></div>';}
-  else fetch(`${API_URL}?action=publicStore&businessId=${encodeURIComponent(user.businessId)}`).then(r=>r.json()).then(data=>{if(!data?.ok)throw new Error(data?.error||'STORE_UNAVAILABLE');const p=data.profile||{},ps=data.products||[];root.innerHTML=`<section class="store-hero">${p.logoUrl?`<img class="store-logo" src="${esc(p.logoUrl)}" alt="Logo empresarial">`:''}<div><span class="eyebrow">ESPACIO DE EMPRENDEDOR</span><h1>${esc(p.businessName||'Mi emprendimiento')}</h1><p>${esc(p.businessDescription||'Descubre nuestros productos y conoce nuestra propuesta.')}</p><div class="store-meta">${esc(p.category||'Emprendimiento')}${p.city?' · '+esc(p.city):''}</div></div></section><section class="store-products"><div class="store-section-head"><div><span class="eyebrow">CATÁLOGO</span><h2>Nuestros productos</h2></div><span class="counter">${ps.length} productos</span></div><div class="store-grid">${ps.map(x=>{const url=safeUrl(x.link)?x.link:(safeUrl(x.social)?x.social:'#');return `<article class="store-product">${x.imageUrl?`<img class="store-product-image" src="${esc(x.imageUrl)}" alt="${esc(x.name||'Producto')}">`:'<div class="store-product-placeholder">Imagen del producto</div>'}<div class="store-product-body"><h3>${esc(x.name||'Producto sin nombre')}</h3><strong>${x.price?money(x.price):'Consultar precio'}</strong><p>${esc(x.description||'Consulta para conocer más detalles de este producto.')}</p>${url!=='#'?`<a class="btn btn-primary store-buy" href="${esc(url)}" target="_blank" rel="noopener">Ver producto en línea ↗</a>`:'<span class="store-no-link">Sin enlace de venta</span>'}</div></article>`;}).join('')}</div></section>`;}).catch(err=>{console.warn(err);root.innerHTML='<div class="empty-store"><h2>La tienda aún no está publicada</h2><p>Los datos ya pueden guardarse en el panel, pero el negocio debe publicarse desde el backend para que esta vista pública esté disponible.</p><a class="btn btn-primary" href="panel.html">Volver al panel →</a></div>';});
+  const root=$('#storefront');
+
+  const showMessage=(
+   title,
+   message,
+   linkText='Volver al panel →',
+   href='panel.html'
+  )=>{
+   root.innerHTML=`
+    <div class="empty-store">
+     <div class="empty-store-icon">▦</div>
+     <h2>${esc(title)}</h2>
+     <p>${esc(message)}</p>
+     <a class="btn btn-primary" href="${esc(href)}">${esc(linkText)}</a>
+    </div>`;
+  };
+
+  async function loadStorePreview(){
+   const sessionToken=token();
+
+   if(!sessionToken){
+    location.replace('login.html');
+    return;
+   }
+
+   root.innerHTML='<div class="empty-store"><p>Cargando los datos guardados de tu emprendimiento…</p></div>';
+
+   try{
+    // El servidor identifica la cuenta y su emprendimiento.
+    const me=await api('me',{token:sessionToken});
+
+    if(!me?.ok||!me.user){
+     clearSession();
+     location.replace('login.html');
+     return;
+    }
+
+    if(!me.user.businessId){
+     showMessage(
+      'Esta cuenta no tiene un emprendimiento asociado',
+      'Inicia sesión con la cuenta de emprendedor vinculada al negocio que quieres previsualizar.'
+     );
+     return;
+    }
+
+    // Recuperamos el perfil y los productos guardados,
+    // incluidos los que todavía no están publicados.
+    const [profileResult,productsResult]=await Promise.all([
+     api('getProfile',{token:sessionToken}),
+     api('listProducts',{token:sessionToken})
+    ]);
+
+    if(!profileResult?.ok){
+     throw new Error(profileResult?.error||'PROFILE_LOAD_FAILED');
+    }
+
+    if(!productsResult?.ok){
+     throw new Error(productsResult?.error||'PRODUCTS_LOAD_FAILED');
+    }
+
+    const p=profileResult.profile||{};
+    const ps=productsResult.products||[];
+
+    root.innerHTML=`
+     <section class="store-hero">
+      ${p.logoUrl?`<img class="store-logo" src="${esc(p.logoUrl)}" alt="Logo empresarial">`:''}
+      <div>
+       <span class="eyebrow">VISTA PREVIA · NO PUBLICADA</span>
+       <h1>${esc(p.businessName||'Mi emprendimiento')}</h1>
+       <p>${esc(p.businessDescription||'Descubre nuestros productos y conoce nuestra propuesta.')}</p>
+       <div class="store-meta">${esc(p.category||'Emprendimiento')}${p.city?' · '+esc(p.city):''}</div>
+      </div>
+     </section>
+
+     <section class="store-products">
+      <div class="store-section-head">
+       <div>
+        <span class="eyebrow">CATÁLOGO</span>
+        <h2>Nuestros productos</h2>
+       </div>
+       <span class="counter">${ps.length} productos</span>
+      </div>
+
+      ${ps.length?`
+       <div class="store-grid">
+        ${ps.map(x=>{
+         const url=safeUrl(x.link)?x.link:(safeUrl(x.social)?x.social:'#');
+
+         return `
+          <article class="store-product">
+           ${x.imageUrl
+            ?`<img class="store-product-image" src="${esc(x.imageUrl)}" alt="${esc(x.name||'Producto')}">`
+            :'<div class="store-product-placeholder">Imagen del producto</div>'}
+
+           <div class="store-product-body">
+            <h3>${esc(x.name||'Producto sin nombre')}</h3>
+            <strong>${x.price!==''&&x.price!=null?money(x.price):'Consultar precio'}</strong>
+            <p>${esc(x.description||'Consulta para conocer más detalles de este producto.')}</p>
+
+            ${url!=='#'
+             ?`<a class="btn btn-primary store-buy" href="${esc(url)}" target="_blank" rel="noopener">Ver producto en línea ↗</a>`
+             :'<span class="store-no-link">Sin enlace de venta</span>'}
+           </div>
+          </article>`;
+        }).join('')}
+       </div>
+      `:`
+       <div class="empty-store">
+        <h2>Aún no hay productos guardados</h2>
+        <p>Vuelve al panel, añade tu primer producto y pulsa “Guardar cambios”.</p>
+        <a class="btn btn-primary" href="panel.html#productos">Ir al catálogo →</a>
+       </div>
+      `}
+     </section>`;
+
+   }catch(err){
+    console.error('VFeria: error cargando la vista previa de la tienda',err);
+
+    showMessage(
+     'No se pudo cargar la vista previa',
+     'No pudimos recuperar el perfil y el catálogo desde el servidor. Vuelve al panel, confirma que los cambios estén guardados y prueba nuevamente.'
+    );
+   }
+  }
+
+  loadStorePreview();
  }
 })();
