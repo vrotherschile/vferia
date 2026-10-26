@@ -1,0 +1,52 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administrar usuarios | VFeria</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="container">
+    <p><a href="panel.html">← Volver al panel</a></p>
+
+    <h1>Administrar usuarios</h1>
+    <p>Desde aquí puedes crear cuentas para nuevos emprendimientos.</p>
+
+    <form id="createUserForm">
+      <label for="username">Nombre de usuario</label>
+      <input id="username" name="username"
+             minlength="3" maxlength="60"
+             autocomplete="off" required>
+
+      <label for="password">Contraseña inicial</label>
+      <input id="password" name="password"
+             type="password" minlength="14"
+             autocomplete="new-password" required>
+      <small>Usa una contraseña única de al menos 14 caracteres.</small>
+
+      <label for="businessName">Nombre del emprendimiento</label>
+      <input id="businessName" name="businessName"
+             maxlength="150" required>
+
+      <label for="email">Correo electrónico (opcional)</label>
+      <input id="email" name="email" type="email">
+
+      <label for="phone">Teléfono (opcional)</label>
+      <input id="phone" name="phone" type="tel">
+
+      <label for="city">Ciudad (opcional)</label>
+      <input id="city" name="city">
+
+      <button type="submit" id="createButton">
+        Crear cuenta
+      </button>
+
+      <p id="adminMessage" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>
