@@ -272,6 +272,7 @@
 
    $('.p-name',c).value=d.name||'';
    $('.p-price',c).value=d.price??'';
+   $('.p-stock',c).value=(d.stock===undefined||d.stock===null||d.stock==='')?'0':String(d.stock);
    $('.p-link',c).value=d.link||'';
    $('.p-social',c).value=d.social||'';
    $('.p-description',c).value=d.description||'';
@@ -426,6 +427,7 @@
       productId:$('.p-product-id',c).value||'',
       name:$('.p-name',c).value.trim(),
       price:$('.p-price',c).value,
+      stock:$('.p-stock',c).value,
       link:$('.p-link',c).value.trim(),
       social:$('.p-social',c).value.trim(),
       description:$('.p-description',c).value.trim(),
@@ -664,6 +666,7 @@
            <div class="store-product-body">
             <h3>${esc(x.name||'Producto sin nombre')}</h3>
             <strong>${x.price!==''&&x.price!=null?money(x.price):'Consultar precio'}</strong>
+            <p class="store-stock ${Number(x.stock||0)===0?'out-of-stock':''}">${Number(x.stock||0)>0?`Disponible: ${Number(x.stock)} unidades`:'Agotado'}</p>
             <p>${esc(x.description||'Consulta para conocer más detalles de este producto.')}</p>
 
             ${url!=='#'
