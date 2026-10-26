@@ -11,7 +11,7 @@
       color-scheme: dark;
       --bg: #0b1020;
       --surface: #151d32;
-      --surface-input: #0b1223;
+      --input-bg: #0b1223;
       --border: #34425f;
       --text: #f1f5ff;
       --muted: #b0bcd3;
@@ -48,6 +48,28 @@
       border: 1px solid #293650;
       border-radius: 16px;
       box-shadow: 0 18px 55px rgba(0, 0, 0, 0.24);
+    }
+
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 30px;
+      color: #9bbcff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    .back-button:hover {
+      color: var(--cyan);
+    }
+
+    .back-button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 4px;
+      border-radius: 3px;
     }
 
     .eyebrow {
@@ -101,7 +123,7 @@
       min-height: 44px;
       padding: 11px 13px;
       color: var(--text);
-      background: var(--surface-input);
+      background: var(--input-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
       outline: none;
@@ -130,7 +152,7 @@
       line-height: 1.65;
     }
 
-    button {
+    #createButton {
       min-height: 44px;
       padding: 12px 20px;
       color: #fff;
@@ -144,17 +166,17 @@
       transition: filter 0.2s, transform 0.2s;
     }
 
-    button:hover {
+    #createButton:hover {
       filter: brightness(1.1);
       transform: translateY(-1px);
     }
 
-    button:focus-visible {
+    #createButton:focus-visible {
       outline: 2px solid #fff;
       outline-offset: 3px;
     }
 
-    button:disabled {
+    #createButton:disabled {
       opacity: 0.6;
       cursor: wait;
       transform: none;
@@ -162,7 +184,6 @@
 
     #status {
       margin: 18px 0 0;
-      padding: 0;
       color: var(--muted);
       font-size: 13px;
       line-height: 1.6;
@@ -200,7 +221,7 @@
         grid-column: auto;
       }
 
-      button {
+      #createButton {
         width: 100%;
       }
     }
@@ -209,7 +230,13 @@
 
 <body>
   <main class="admin-container">
+
+    <a href="index.html" class="back-button">
+      ← Volver al inicio
+    </a>
+
     <p class="eyebrow">Gestión privada</p>
+
     <h1>Administrar usuarios</h1>
 
     <p class="description">
@@ -218,6 +245,7 @@
 
     <form id="adminCreateForm">
       <div class="form-grid">
+
         <div class="field">
           <label for="username">Nombre de usuario</label>
           <input
@@ -280,6 +308,7 @@
             autocomplete="address-level2"
           >
         </div>
+
       </div>
 
       <p class="help-text">
