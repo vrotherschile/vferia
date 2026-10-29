@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Busca productos de emprendimientos en VFeria, revisa sus características y contacta directamente al vendedor.">
+<meta name="theme-color" content="#080d1b"><title>Buscar productos | VFeria</title><link rel="stylesheet" href="styles.css">
+</head>
+<body class="store-page catalog-page">
+<header class="dash-topbar store-topbar"><a class="brand" href="index.html"><img src="assets/VFeria-logo.png" alt="VFeria"></a><div class="dash-top-right"><a class="btn btn-outline btn-small" href="index.html">← Inicio</a><a class="btn btn-primary btn-small" href="login.html">Acceso emprendedores →</a></div></header>
+<main class="catalog-shell">
+<section class="catalog-intro"><span class="eyebrow">VFeria · CATÁLOGO WEB</span><h1>Encuentra lo que buscas.<br><span class="gradient-text">Habla directamente con quien lo ofrece.</span></h1><p>Explora productos publicados por los emprendimientos VFeria. Revisa precios, características y contacta al vendedor o visita su enlace externo. VFeria facilita el contacto; la compra se coordina directamente con cada vendedor.</p></section>
+<section class="catalog-tools" aria-label="Buscar productos"><label class="catalog-search-label" for="catalogSearch">¿Qué estás buscando?</label><input id="catalogSearch" type="search" placeholder="Ej.: artesanía, ropa, accesorios…" autocomplete="off"><div class="catalog-filters"><label>Emprendimiento<select id="businessFilter"><option value="">Todos los emprendimientos</option></select></label><label>Ordenar<select id="sortFilter"><option value="relevance">Relevancia</option><option value="name">Nombre A–Z</option><option value="priceAsc">Precio: menor a mayor</option><option value="priceDesc">Precio: mayor a menor</option></select></label><button id="clearFilters" class="btn btn-outline" type="button">Limpiar filtros</button></div><div class="catalog-result-row"><p id="catalogStatus" role="status" aria-live="polite">Cargando catálogo…</p><button id="refreshCatalog" class="catalog-refresh" type="button">Actualizar catálogo</button></div></section>
+<section><div id="catalogGrid" class="catalog-grid" aria-live="polite"></div><div id="catalogEmpty" class="catalog-empty" hidden><h2>No encontramos productos</h2><p>Prueba con otro término o limpia los filtros. Los productos aparecen aquí cuando el negocio y el producto han sido publicados.</p><button class="btn btn-outline" id="emptyClear" type="button">Ver todos los productos</button></div></section>
+<section class="catalog-note"><b>¿Tienes un emprendimiento?</b><span>Solicita tu acceso para administrar tu catálogo en VFeria.</span><a href="login.html">Entrar al panel →</a></section>
+</main>
+<footer class="footer"><a class="brand footer-brand" href="index.html"><img src="assets/VFeria-logo.png" alt="VFeria"></a><span>Descubre emprendimientos · Contacta directamente · VFeria</span><a href="index.html">Volver al inicio →</a><small>© 2026 VFeria · Una iniciativa de VRothers</small></footer>
+<script src="catalog.js"></script></body></html>
