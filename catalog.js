@@ -1,4 +1,3 @@
-
 (() => {
   'use strict';
 
@@ -7,6 +6,50 @@
   const CACHE_TTL = 10 * 60 * 1000;
 
   const $ = (selector, root = document) => root.querySelector(selector);
+
+  // Corrección: restaurar las imágenes cuadradas y evitar deformaciones.
+  function installSquareProductImageStyles() {
+    if (document.getElementById('vferia-square-product-images')) return;
+
+    const style = document.createElement('style');
+    style.id = 'vferia-square-product-images';
+    style.textContent = `
+      #catalogGrid .catalog-product-image-wrap {
+        display: block;
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        height: auto;
+        min-height: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
+      #catalogGrid img.catalog-product-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        object-position: center;
+      }
+
+      #catalogGrid .catalog-product-placeholder {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        text-align: center;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  installSquareProductImageStyles();
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;',
