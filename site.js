@@ -1,3 +1,4 @@
+
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -7,6 +8,27 @@
   const USER_KEY = 'vferia_api_user';
 
   const safeUrl = v => /^https?:\/\//i.test((v || '').trim());
+
+  const safeMercadoPagoUrl = v => {
+    const value = String(v || '').trim();
+    if (!value) return true;
+
+    try {
+      const u = new URL(value);
+      const h = u.hostname.toLowerCase();
+
+      return u.protocol === 'https:' && (
+        h === 'mercadopago.cl' ||
+        h.endsWith('.mercadopago.cl') ||
+        h === 'mercadopago.com' ||
+        h.endsWith('.mercadopago.com') ||
+        h === 'mpago.la' ||
+        h.endsWith('.mpago.la')
+      );
+    } catch {
+      return false;
+    }
+  };
 
   async function api(action, payload = {}) {
     const response = await fetch(API_URL, {
@@ -124,6 +146,28 @@
       return;
     }
 
+    // COMPARTIR CATÁLOGO DE LA TIENDA
+    const shareCatalogBtn = $('#shareCatalogBtn');
+
+    if (shareCatalogBtn) {
+      shareCatalogBtn.addEventListener('click', async () => {
+        if (!user.businessId) {
+          status.textContent = 'No se encontró el identificador de tu emprendimiento.';
+          return;
+        }
+
+        const url = new URL('productos.html', location.href);
+        url.searchParams.set('tienda', user.businessId);
+
+        try {
+          await navigator.clipboard.writeText(url.href);
+          status.textContent = 'Enlace de tu catálogo copiado. Puedes compartirlo por WhatsApp o redes sociales.';
+        } catch (_) {
+          window.prompt('Copia el enlace público de tu catálogo:', url.href);
+        }
+      });
+    }
+
     const alert = $('.prototype-alert');
 
     if (alert) {
@@ -132,6 +176,12 @@
 
     const overlay = $('#imageEditor');
     const canvas = $('#editorCanvas');
+
+    if (!overlay || !canvas) {
+      console.error('Faltan elementos del editor de imágenes en panel.html.');
+      return;
+    }
+
     const ctx = canvas.getContext('2d');
 
     let logoData = '';
@@ -142,8 +192,8 @@
     let loading = true;
 
     // BARRA VISUAL DE PROGRESO
-    const progressContainer = $('#saveProgress');
-    const progressBar = $('#saveProgressBar');
+    const progressContainer = $('#saveProgressPanel');
+    const progressBar = $('#saveProgressFill');
     const progressPercent = $('#saveProgressPercent');
     const progressLabel = $('#saveProgressLabel');
 
@@ -152,7 +202,13 @@
 
       if (progressContainer) {
         progressContainer.hidden = false;
-        progressContainer.setAttribute('aria-valuenow', String(value));
+        progressContainer.dataset.state = value >= 100 ? 'done' : 'saving';
+      }
+
+      const track = $('#saveProgressTrack');
+
+      if (track) {
+        track.setAttribute('aria-valuenow', String(value));
       }
 
       if (progressBar) {
@@ -170,21 +226,18 @@
 
     function hideProgress() {
       if (progressContainer) {
-        progressContainer.hidden = true;
-        progressContainer.setAttribute('aria-valuenow', '0');
+        progressContainer.dataset.state = 'idle';
       }
 
-      if (progressBar) {
-        progressBar.style.width = '0%';
+      const track = $('#saveProgressTrack');
+
+      if (track) {
+        track.setAttribute('aria-valuenow', '0');
       }
 
-      if (progressPercent) {
-        progressPercent.textContent = '0%';
-      }
-
-      if (progressLabel) {
-        progressLabel.textContent = '';
-      }
+      if (progressBar) progressBar.style.width = '0%';
+      if (progressPercent) progressPercent.textContent = '0%';
+      if (progressLabel) progressLabel.textContent = '';
     }
 
     const dirty = () => {
@@ -193,11 +246,13 @@
 
     function count() {
       const n = $$('.product-editor', list).length;
+
       counter.textContent = `${n} / 30`;
       addBtn.disabled = n >= 30;
       addBtn.style.opacity = n >= 30 ? '.45' : '1';
     }
 
+    // EDITOR DE IMÁGENES
     function drawEditor() {
       if (!sourceImage || !job) return;
 
@@ -294,6 +349,7 @@
       if (!sourceImage || !job) return;
 
       const out = document.createElement('canvas');
+
       out.width = job.kind === 'logo' ? 1080 : 1000;
       out.height = job.kind === 'logo' ? 540 : 1000;
 
@@ -325,10 +381,12 @@
       dirty();
     });
 
+    // ACTUALIZAR PREVISUALIZACIÓN DEL PRODUCTO
     function refresh(card) {
       const name = $('.p-name', card).value.trim() || 'Nuevo producto';
       const url = $('.p-link', card).value.trim();
       const social = $('.p-social', card).value.trim();
+      const payment = $('.p-payment-link', card).value.trim();
       const a = $('.whatsapp-preview', card);
 
       $('.product-title', card).textContent = name;
@@ -336,10 +394,22 @@
       const target = safeUrl(url) ? url : (safeUrl(social) ? social : '#');
 
       a.href = target;
-      a.textContent = target === '#' ? 'Añade un enlace de venta' : 'Abrir enlace de venta ↗';
+      a.textContent = target === '#'
+        ? (payment ? 'Enlace de pago configurado' : 'Añade un enlace de venta')
+        : 'Abrir enlace de venta ↗';
+
       a.style.opacity = target === '#' ? '.45' : '1';
+
+      const paymentPreview = $('.p-payment-preview', card);
+
+      if (paymentPreview) {
+        const paymentValid = safeMercadoPagoUrl(payment);
+        paymentPreview.hidden = !paymentValid;
+        paymentPreview.href = paymentValid ? payment : '#';
+      }
     }
 
+    // CREAR TARJETA DE EDICIÓN DE PRODUCTO
     function addProduct(d = {}) {
       if ($$('.product-editor', list).length >= 30) return;
 
@@ -349,6 +419,7 @@
       $('.p-price', c).value = d.price ?? '';
       $('.p-stock', c).value = d.stock ?? 0;
       $('.p-link', c).value = d.link || '';
+      $('.p-payment-link', c).value = d.paymentLink || '';
       $('.p-social', c).value = d.social || '';
       $('.p-description', c).value = d.description || '';
       $('.p-product-id', c).value = d.productId || '';
@@ -411,6 +482,7 @@
       count();
     }
 
+    // DATOS DEL PERFIL
     function formProfile() {
       const p = {};
 
@@ -449,6 +521,7 @@
       return r;
     }
 
+    // GUARDAR PERFIL Y PRODUCTOS
     async function saveAll() {
       if (loading) {
         status.textContent = 'Espera a que termine de cargar la información.';
@@ -456,7 +529,7 @@
       }
 
       if (!user.businessId) {
-        status.textContent = 'Esta cuenta no tiene un emprendimiento asociado. Crea o utiliza una cuenta de emprendedor antes de guardar.';
+        status.textContent = 'Esta cuenta no tiene un emprendimiento asociado.';
         return;
       }
 
@@ -513,11 +586,15 @@
             stock: $('.p-stock', c).value,
             link: $('.p-link', c).value.trim(),
             social: $('.p-social', c).value.trim(),
+            paymentLink: $('.p-payment-link', c).value.trim(),
             description: $('.p-description', c).value.trim(),
             imageKey: $('.p-image-key', c).value,
-            imageUrl: $('.p-image-url', c).value,
-            published: true
+            imageUrl: $('.p-image-url', c).value
           };
+
+          if (product.paymentLink && !safeMercadoPagoUrl(product.paymentLink)) {
+            throw new Error('El enlace de pago debe ser una URL HTTPS oficial de Mercado Pago.');
+          }
 
           const imageData = $('.p-image-data', c).value;
 
@@ -595,6 +672,7 @@
       }
     }
 
+    // CARGAR PERFIL Y PRODUCTOS
     async function load() {
       status.textContent = 'Cargando información desde VFeria…';
 
@@ -611,7 +689,7 @@
           status.textContent = 'La sesión es válida, pero esta cuenta no tiene un emprendimiento asociado.';
 
           if (alert) {
-            alert.innerHTML = '<span>!</span><p><b>Cuenta sin emprendimiento asociado:</b> para utilizar este panel necesitas una cuenta de emprendedor vinculada a un negocio.</p>';
+            alert.innerHTML = '<span>!</span><p><b>Cuenta sin emprendimiento asociado:</b> necesitas una cuenta vinculada a un negocio.</p>';
           }
 
           loading = false;
@@ -746,6 +824,7 @@
               <div class="store-grid">
                 ${ps.map(x => {
                   const url = safeUrl(x.link) ? x.link : (safeUrl(x.social) ? x.social : '#');
+                  const paymentUrl = safeMercadoPagoUrl(x.paymentLink) ? x.paymentLink : '';
 
                   return `
                     <article class="store-product">
@@ -756,8 +835,11 @@
                         <h3>${esc(x.name || 'Producto sin nombre')}</h3>
                         <strong>${x.price ? money(x.price) : 'Consultar precio'}</strong>
                         <p>${esc(x.description || 'Consulta para conocer más detalles de este producto.')}</p>
+                        ${paymentUrl
+                          ? `<a class="btn btn-primary store-buy" href="${esc(paymentUrl)}" target="_blank" rel="noopener noreferrer nofollow">Pagar en línea ↗</a>`
+                          : ''}
                         ${url !== '#'
-                          ? `<a class="btn btn-primary store-buy" href="${esc(url)}" target="_blank" rel="noopener">Ver producto en línea ↗</a>`
+                          ? `<a class="btn btn-outline store-buy" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Ver producto en línea ↗</a>`
                           : '<span class="store-no-link">Sin enlace de venta</span>'}
                       </div>
                     </article>`;

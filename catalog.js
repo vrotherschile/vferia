@@ -1,67 +1,270 @@
+
 (() => {
   'use strict';
+
   const API_URL = 'https://script.google.com/macros/s/AKfycbzdKI-wK6Ao08bjpRhH_M_yDeFA7CgnMJuLtrUnIqiEGWYxnzhDWiqZtmYtvShytZE-lQ/exec';
-  const CACHE_KEY = 'vferia_public_catalog_v1';
+  const CACHE_KEY = 'vferia_public_catalog_v2';
   const CACHE_TTL = 10 * 60 * 1000;
-  const $ = (s) => document.querySelector(s);
-  const search = $('#catalogSearch'), businessFilter = $('#businessFilter'), sortFilter = $('#sortFilter');
-  const grid = $('#catalogGrid'), status = $('#catalogStatus'), empty = $('#catalogEmpty');
-  let catalog = [], lastLoaded = 0;
-  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const safeUrl = v => { try { const u = new URL(String(v || '')); return ['https:','http:'].includes(u.protocol) ? u.href : ''; } catch { return ''; } };
-  const money = v => Number(v || 0).toLocaleString('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
-  function normalizePhone(v) { let n=String(v||'').replace(/\D/g,''); if(n.startsWith('00')) n=n.slice(2); if(n.startsWith('0')) n=n.slice(1); if(n.length===9 && n.startsWith('9')) n='56'+n; return n; }
-  function contactHref(product) {
-    const p=product.sellerPhone || '', email=product.sellerEmail || '';
-    const phone=normalizePhone(p);
-    if(phone.length>=8) return 'https://wa.me/'+phone+'?text='+encodeURIComponent('Hola, vi el producto "'+product.name+'" en VFeria y quisiera más información.');
-    if(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'mailto:'+email+'?subject='+encodeURIComponent('Consulta por '+product.name+' en VFeria');
-    return safeUrl(product.link) || safeUrl(product.social) || safeUrl(product.businessWeb) || '';
-  }
-  function flatten(data) {
-    const result=[];
-    (data.businesses || []).forEach(b => (b.products || []).forEach(p => result.push({...p,businessId:b.businessId,businessName:b.businessName||'Emprendimiento',businessCity:b.city||'',sellerPhone:b.phone||'',sellerEmail:b.email||'',businessWeb:b.businessWeb||'',businessLogo:b.logoUrl||''})));
-    return result;
-  }
-  async function loadCatalog(force=false) {
-    status.textContent='Cargando catálogo público…';
-    if(!force) {
-      try { const cached=JSON.parse(localStorage.getItem(CACHE_KEY)||'null'); if(cached && Date.now()-cached.savedAt<CACHE_TTL && cached.data && Array.isArray(cached.data.businesses)) { catalog=flatten(cached.data); lastLoaded=cached.savedAt; populateBusinesses(cached.data.businesses); render(); status.textContent=`${catalog.length} productos · catálogo en caché`; return; } } catch {}
-    }
+
+  const $ = (selector, root = document) => root.querySelector(selector);
+
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[c]);
+
+  const safeUrl = value => {
     try {
-      const response=await fetch(API_URL+'?action=publicCatalog', {method:'GET',cache:'no-store'});
-      if(!response.ok) throw new Error('HTTP_'+response.status);
-      const data=await response.json();
-      if(!data || !data.ok || !Array.isArray(data.businesses)) throw new Error(data?.error||'CATALOG_RESPONSE_INVALID');
-      catalog=flatten(data); lastLoaded=Date.now();
-      try { localStorage.setItem(CACHE_KEY,JSON.stringify({savedAt:lastLoaded,data})); } catch(e) { console.warn('No se pudo guardar caché local',e); }
-      populateBusinesses(data.businesses); render(); status.textContent=`${catalog.length} productos disponibles`;
-    } catch(error) {
-      console.error('VFeria catalog error',error);
-      try { const cached=JSON.parse(localStorage.getItem(CACHE_KEY)||'null'); if(cached?.data?.businesses) { catalog=flatten(cached.data); populateBusinesses(cached.data.businesses); render(); status.textContent='No se pudo actualizar. Mostrando la última copia guardada.'; return; } } catch {}
-      status.textContent='No pudimos cargar el catálogo. Intenta actualizar en unos momentos.';
-      grid.innerHTML='<div class="catalog-error">El catálogo no está disponible ahora. Si acabas de configurar VFeria, comprueba que la API incluya la acción <code>publicCatalog</code>.</div>';
+      const url = new URL(String(value || '').trim());
+      return url.protocol === 'https:' ? url.href : '';
+    } catch {
+      return '';
+    }
+  };
+
+  const money = value => Number(value || 0).toLocaleString('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0
+  });
+
+  const params = new URLSearchParams(location.search);
+  const requestedBusinessId = params.get('tienda') || '';
+
+  const searchInput = $('#catalogSearch');
+  const businessFilter = $('#businessFilter');
+  const sortFilter = $('#sortFilter');
+  const grid = $('#catalogGrid');
+  const status = $('#catalogStatus');
+  const empty = $('#catalogEmpty');
+  const clearButton = $('#clearFilters');
+  const emptyClearButton = $('#emptyClear');
+  const refreshButton = $('#refreshCatalog');
+
+  let businesses = [];
+  let allProducts = [];
+  let selectedBusinessId = requestedBusinessId;
+
+  async function loadCatalog(forceRefresh = false) {
+    status.textContent = 'Cargando catálogo…';
+
+    try {
+      let data = null;
+
+      if (!forceRefresh) {
+        try {
+          const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+
+          if (cached && Date.now() - cached.savedAt < CACHE_TTL) {
+            data = cached.data;
+          }
+        } catch {
+          // Si la caché no es válida, se consulta la API.
+        }
+      }
+
+      if (!data) {
+        const response = await fetch(`${API_URL}?action=publicCatalog`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) throw new Error('HTTP_' + response.status);
+
+        data = await response.json();
+
+        if (!data?.ok || !Array.isArray(data.businesses)) {
+          throw new Error(data?.error || 'CATALOG_UNAVAILABLE');
+        }
+
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            savedAt: Date.now(),
+            data
+          }));
+        } catch {
+          // El catálogo sigue funcionando si el navegador no permite caché.
+        }
+      }
+
+      businesses = data.businesses || [];
+      allProducts = businesses.flatMap(business =>
+        (business.products || []).map(product => ({
+          ...product,
+          businessId: product.businessId || business.businessId,
+          businessName: business.businessName || 'Emprendimiento',
+          businessCategory: business.category || '',
+          businessCity: business.city || '',
+          businessLogo: business.logoUrl || ''
+        }))
+      );
+
+      populateBusinessFilter();
+      applyInitialBusinessFilter();
+      render();
+
+    } catch (error) {
+      console.error('Error al cargar catálogo VFeria:', error);
+      status.textContent = 'No se pudo cargar el catálogo. Intenta actualizarlo.';
+      grid.innerHTML = '';
+      empty.hidden = false;
     }
   }
-  function populateBusinesses(businesses) {
-    const old=businessFilter.value;
-    const options=businesses.map(b=>`<option value="${esc(b.businessId)}">${esc(b.businessName||'Emprendimiento')}</option>`).join('');
-    businessFilter.innerHTML='<option value="">Todos los emprendimientos</option>'+options;
-    if([...businessFilter.options].some(o=>o.value===old)) businessFilter.value=old;
+
+  function populateBusinessFilter() {
+    if (!businessFilter) return;
+
+    businessFilter.innerHTML =
+      '<option value="">Todos los emprendimientos</option>';
+
+    businesses.forEach(business => {
+      const option = document.createElement('option');
+      option.value = business.businessId;
+      option.textContent = business.businessName || 'Emprendimiento';
+      businessFilter.appendChild(option);
+    });
   }
+
+  function applyInitialBusinessFilter() {
+    if (!businessFilter || !requestedBusinessId) return;
+
+    const exists = businesses.some(
+      business => String(business.businessId) === String(requestedBusinessId)
+    );
+
+    if (exists) {
+      selectedBusinessId = requestedBusinessId;
+      businessFilter.value = requestedBusinessId;
+    } else {
+      selectedBusinessId = '';
+      businessFilter.value = '';
+      status.textContent = 'La tienda solicitada no está publicada o no existe.';
+    }
+  }
+
   function render() {
-    const q=search.value.trim().toLocaleLowerCase('es'); const business=businessFilter.value;
-    let items=catalog.filter(p=>(!business||p.businessId===business) && (!q||[p.name,p.description,p.businessName,p.category,p.businessCity].join(' ').toLocaleLowerCase('es').includes(q)));
-    switch(sortFilter.value) { case 'name': items.sort((a,b)=>a.name.localeCompare(b.name,'es')); break; case 'priceAsc': items.sort((a,b)=>Number(a.price||0)-Number(b.price||0)); break; case 'priceDesc': items.sort((a,b)=>Number(b.price||0)-Number(a.price||0)); break; }
-    status.textContent=`${items.length} de ${catalog.length} productos`+(lastLoaded?' · actualizado '+new Date(lastLoaded).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}):'');
-    empty.hidden=items.length!==0; grid.innerHTML=items.map(p=>{
-      const image=safeUrl(p.imageUrl), contact=contactHref(p), external=safeUrl(p.link)||safeUrl(p.social)||safeUrl(p.businessWeb);
-      const price=Number(p.price)>0?money(p.price):'Consultar precio';
-      return `<article class="catalog-product"><div class="catalog-image-wrap">${image?`<img class="catalog-image" src="${esc(image)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:'<div class="catalog-image-placeholder">VFeria</div>'}<span class="catalog-business-chip">${esc(p.businessName)}</span></div><div class="catalog-product-body"><div class="catalog-product-meta">${p.businessCity?`<span>${esc(p.businessCity)}</span>`:''}<span>Producto publicado</span></div><h2>${esc(p.name||'Producto')}</h2><strong class="catalog-price">${esc(price)}</strong><p class="catalog-description">${esc(p.description||'Consulta al vendedor para conocer más detalles de este producto.')}</p><div class="catalog-card-actions">${contact?`<a class="btn btn-primary" href="${esc(contact)}" target="_blank" rel="noopener">Contactar vendedor ↗</a>`:'<span class="catalog-no-contact">Contacto no informado</span>'}${external?`<a class="catalog-external" href="${esc(external)}" target="_blank" rel="noopener">Ver enlace externo</a>`:''}</div></div></article>`;
+    const query = String(searchInput?.value || '').trim().toLowerCase();
+
+    let filtered = allProducts.filter(product => {
+      const matchesBusiness = !selectedBusinessId ||
+        String(product.businessId) === String(selectedBusinessId);
+
+      const searchable = [
+        product.name,
+        product.description,
+        product.businessName,
+        product.businessCategory,
+        product.businessCity
+      ].join(' ').toLowerCase();
+
+      return matchesBusiness && searchable.includes(query);
+    });
+
+    const sort = sortFilter?.value || 'relevance';
+
+    if (sort === 'name') {
+      filtered.sort((a, b) =>
+        String(a.name || '').localeCompare(String(b.name || ''), 'es')
+      );
+    } else if (sort === 'priceAsc') {
+      filtered.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    } else if (sort === 'priceDesc') {
+      filtered.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    }
+
+    grid.innerHTML = filtered.map(product => {
+      const image = safeUrl(product.imageUrl);
+      const paymentUrl = safeUrl(product.paymentLink);
+      const saleUrl = safeUrl(product.link);
+      const socialUrl = safeUrl(product.social);
+
+      const contactUrl = saleUrl || socialUrl;
+
+      return `
+        <article class="catalog-product">
+          <div class="catalog-product-image-wrap">
+            ${image
+              ? `<img class="catalog-product-image"
+                     src="${esc(image)}"
+                     alt="${esc(product.name || 'Producto')}"
+                     loading="lazy">`
+              : '<div class="catalog-product-placeholder">Imagen del producto</div>'}
+          </div>
+
+          <div class="catalog-product-body">
+            <span class="catalog-business-name">${esc(product.businessName)}</span>
+            <h2>${esc(product.name || 'Producto')}</h2>
+            <strong class="catalog-price">${money(product.price)}</strong>
+            <p>${esc(product.description || 'Consulta los detalles de este producto.')}</p>
+
+            <div class="catalog-product-actions">
+              ${paymentUrl
+                ? `<a class="btn btn-primary"
+                      href="${esc(paymentUrl)}"
+                      target="_blank"
+                      rel="noopener noreferrer nofollow">
+                     Pagar en línea ↗
+                   </a>`
+                : ''}
+
+              ${contactUrl
+                ? `<a class="btn btn-outline"
+                      href="${esc(contactUrl)}"
+                      target="_blank"
+                      rel="noopener noreferrer">
+                     Consultar producto ↗
+                   </a>`
+                : ''}
+            </div>
+          </div>
+        </article>`;
     }).join('');
+
+    if (empty) empty.hidden = filtered.length > 0;
+
+    if (status) {
+      status.textContent = `${filtered.length} producto(s) encontrado(s)`;
+    }
   }
-  [search,businessFilter,sortFilter].forEach(el=>el.addEventListener(el===search?'input':'change',render));
-  function clear(){search.value='';businessFilter.value='';sortFilter.value='relevance';render();}
-  $('#clearFilters').addEventListener('click',clear); $('#emptyClear').addEventListener('click',clear); $('#refreshCatalog').addEventListener('click',()=>loadCatalog(true));
+
+  function clearFilters() {
+    if (searchInput) searchInput.value = '';
+    if (sortFilter) sortFilter.value = 'relevance';
+
+    selectedBusinessId = '';
+    if (businessFilter) businessFilter.value = '';
+
+    render();
+
+    const url = new URL(location.href);
+    url.searchParams.delete('tienda');
+    history.replaceState({}, '', url);
+  }
+
+  searchInput?.addEventListener('input', render);
+
+  businessFilter?.addEventListener('change', () => {
+    selectedBusinessId = businessFilter.value;
+
+    const url = new URL(location.href);
+
+    if (selectedBusinessId) {
+      url.searchParams.set('tienda', selectedBusinessId);
+    } else {
+      url.searchParams.delete('tienda');
+    }
+
+    history.replaceState({}, '', url);
+    render();
+  });
+
+  sortFilter?.addEventListener('change', render);
+  clearButton?.addEventListener('click', clearFilters);
+  emptyClearButton?.addEventListener('click', clearFilters);
+  refreshButton?.addEventListener('click', () => loadCatalog(true));
+
   loadCatalog();
 })();
