@@ -7,12 +7,13 @@
 
   const $ = (selector, root = document) => root.querySelector(selector);
 
-  // Corrección: restaurar las imágenes cuadradas y evitar deformaciones.
+  // Mantener imágenes cuadradas y sin deformaciones.
   function installSquareProductImageStyles() {
     if (document.getElementById('vferia-square-product-images')) return;
 
     const style = document.createElement('style');
     style.id = 'vferia-square-product-images';
+
     style.textContent = `
       #catalogGrid .catalog-product-image-wrap {
         display: block;
@@ -46,6 +47,7 @@
         text-align: center;
       }
     `;
+
     document.head.appendChild(style);
   }
 
@@ -74,6 +76,49 @@
     maximumFractionDigits: 0
   });
 
+  // Normaliza el número de WhatsApp.
+  function normalizeWhatsAppNumber(value) {
+    let number = String(value || '').replace(/\D/g, '');
+
+    if (!number) return '';
+
+    // Si es un celular chileno sin código de país, agrega 56.
+    if (number.length === 9 && number.startsWith('9')) {
+      number = '56' + number;
+    }
+
+    return number;
+  }
+
+  // Genera siempre un enlace funcional de WhatsApp.
+  function createWhatsAppUrl(product) {
+    const phone = normalizeWhatsAppNumber(
+      product.businessWhatsapp ||
+      product.businessPhone ||
+      product.whatsapp ||
+      product.phone ||
+      ''
+    );
+
+    const message = [
+      'Hola, vi este producto en VFeria y quisiera más información.',
+      '',
+      'Producto: ' + (product.name || 'Producto'),
+      'Emprendimiento: ' + (product.businessName || 'Emprendimiento'),
+      'Precio: ' + money(product.price)
+    ].join('\n');
+
+    const encodedMessage = encodeURIComponent(message);
+
+    // Si existe el número del vendedor, abre su conversación.
+    if (phone) {
+      return `https://wa.me/${phone}?text=${encodedMessage}`;
+    }
+
+    // Si no existe número, permite compartir el producto por WhatsApp.
+    return `https://wa.me/?text=${encodedMessage}`;
+  }
+
   const params = new URLSearchParams(location.search);
   const requestedBusinessId = params.get('tienda') || '';
 
@@ -99,7 +144,9 @@
 
       if (!forceRefresh) {
         try {
-          const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+          const cached = JSON.parse(
+            localStorage.getItem(CACHE_KEY) || 'null'
+          );
 
           if (cached && Date.now() - cached.savedAt < CACHE_TTL) {
             data = cached.data;
@@ -110,12 +157,17 @@
       }
 
       if (!data) {
-        const response = await fetch(`${API_URL}?action=publicCatalog`, {
-          method: 'GET',
-          cache: 'no-store'
-        });
+        const response = await fetch(
+          `${API_URL}?action=publicCatalog`,
+          {
+            method: 'GET',
+            cache: 'no-store'
+          }
+        );
 
-        if (!response.ok) throw new Error('HTTP_' + response.status);
+        if (!response.ok) {
+          throw new Error('HTTP_' + response.status);
+        }
 
         data = await response.json();
 
@@ -129,19 +181,37 @@
             data
           }));
         } catch {
-          // El catálogo sigue funcionando si el navegador no permite caché.
+          // El catálogo sigue funcionando sin caché.
         }
       }
 
       businesses = data.businesses || [];
+
       allProducts = businesses.flatMap(business =>
         (business.products || []).map(product => ({
           ...product,
+
           businessId: product.businessId || business.businessId,
           businessName: business.businessName || 'Emprendimiento',
           businessCategory: business.category || '',
           businessCity: business.city || '',
-          businessLogo: business.logoUrl || ''
+          businessLogo: business.logoUrl || '',
+
+          // Datos de contacto del emprendimiento.
+          businessWhatsapp:
+            business.whatsapp ||
+            business.whatsappNumber ||
+            business.phone ||
+            business.telephone ||
+            product.businessWhatsapp ||
+            product.whatsapp ||
+            '',
+
+          businessPhone:
+            business.phone ||
+            business.telephone ||
+            product.businessPhone ||
+            ''
         }))
       );
 
@@ -151,7 +221,10 @@
 
     } catch (error) {
       console.error('Error al cargar catálogo VFeria:', error);
-      status.textContent = 'No se pudo cargar el catálogo. Intenta actualizarlo.';
+
+      status.textContent =
+        'No se pudo cargar el catálogo. Intenta actualizarlo.';
+
       grid.innerHTML = '';
       empty.hidden = false;
     }
@@ -165,8 +238,10 @@
 
     businesses.forEach(business => {
       const option = document.createElement('option');
+
       option.value = business.businessId;
       option.textContent = business.businessName || 'Emprendimiento';
+
       businessFilter.appendChild(option);
     });
   }
@@ -175,7 +250,8 @@
     if (!businessFilter || !requestedBusinessId) return;
 
     const exists = businesses.some(
-      business => String(business.businessId) === String(requestedBusinessId)
+      business =>
+        String(business.businessId) === String(requestedBusinessId)
     );
 
     if (exists) {
@@ -184,12 +260,16 @@
     } else {
       selectedBusinessId = '';
       businessFilter.value = '';
-      status.textContent = 'La tienda solicitada no está publicada o no existe.';
+
+      status.textContent =
+        'La tienda solicitada no está publicada o no existe.';
     }
   }
 
   function render() {
-    const query = String(searchInput?.value || '').trim().toLowerCase();
+    const query = String(searchInput?.value || '')
+      .trim()
+      .toLowerCase();
 
     let filtered = allProducts.filter(product => {
       const matchesBusiness = !selectedBusinessId ||
@@ -213,9 +293,13 @@
         String(a.name || '').localeCompare(String(b.name || ''), 'es')
       );
     } else if (sort === 'priceAsc') {
-      filtered.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+      filtered.sort((a, b) =>
+        Number(a.price || 0) - Number(b.price || 0)
+      );
     } else if (sort === 'priceDesc') {
-      filtered.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+      filtered.sort((a, b) =>
+        Number(b.price || 0) - Number(a.price || 0)
+      );
     }
 
     grid.innerHTML = filtered.map(product => {
@@ -226,50 +310,81 @@
 
       const contactUrl = saleUrl || socialUrl;
 
+      // WhatsApp siempre tendrá un enlace.
+      const whatsappUrl = createWhatsAppUrl(product);
+
       return `
         <article class="catalog-product">
+
           <div class="catalog-product-image-wrap">
             ${image
-              ? `<img class="catalog-product-image"
-                     src="${esc(image)}"
-                     alt="${esc(product.name || 'Producto')}"
-                     loading="lazy">`
+              ? `<img
+                   class="catalog-product-image"
+                   src="${esc(image)}"
+                   alt="${esc(product.name || 'Producto')}"
+                   loading="lazy">`
               : '<div class="catalog-product-placeholder">Imagen del producto</div>'}
           </div>
 
           <div class="catalog-product-body">
-            <span class="catalog-business-name">${esc(product.businessName)}</span>
+
+            <span class="catalog-business-name">
+              ${esc(product.businessName)}
+            </span>
+
             <h2>${esc(product.name || 'Producto')}</h2>
-            <strong class="catalog-price">${money(product.price)}</strong>
-            <p>${esc(product.description || 'Consulta los detalles de este producto.')}</p>
+
+            <strong class="catalog-price">
+              ${money(product.price)}
+            </strong>
+
+            <p>
+              ${esc(product.description || 'Consulta los detalles de este producto.')}
+            </p>
 
             <div class="catalog-product-actions">
+
               ${paymentUrl
-                ? `<a class="btn btn-primary"
-                      href="${esc(paymentUrl)}"
-                      target="_blank"
-                      rel="noopener noreferrer nofollow">
-                     Pagar en línea ↗
-                   </a>`
+                ? `<a
+                    class="btn btn-primary"
+                    href="${esc(paymentUrl)}"
+                    target="_blank"
+                    rel="noopener noreferrer nofollow">
+                    Pagar en línea ↗
+                  </a>`
                 : ''}
 
+              <a
+                class="btn btn-outline whatsapp-contact-button"
+                href="${esc(whatsappUrl)}"
+                target="_blank"
+                rel="noopener noreferrer">
+                <span aria-hidden="true">💬</span>
+                Contactar vía WhatsApp
+              </a>
+
               ${contactUrl
-                ? `<a class="btn btn-outline"
-                      href="${esc(contactUrl)}"
-                      target="_blank"
-                      rel="noopener noreferrer">
-                     Consultar producto ↗
-                   </a>`
+                ? `<a
+                    class="btn btn-outline"
+                    href="${esc(contactUrl)}"
+                    target="_blank"
+                    rel="noopener noreferrer">
+                    Consultar producto ↗
+                  </a>`
                 : ''}
+
             </div>
           </div>
         </article>`;
     }).join('');
 
-    if (empty) empty.hidden = filtered.length > 0;
+    if (empty) {
+      empty.hidden = filtered.length > 0;
+    }
 
     if (status) {
-      status.textContent = `${filtered.length} producto(s) encontrado(s)`;
+      status.textContent =
+        `${filtered.length} producto(s) encontrado(s)`;
     }
   }
 
@@ -278,12 +393,16 @@
     if (sortFilter) sortFilter.value = 'relevance';
 
     selectedBusinessId = '';
-    if (businessFilter) businessFilter.value = '';
+
+    if (businessFilter) {
+      businessFilter.value = '';
+    }
 
     render();
 
     const url = new URL(location.href);
     url.searchParams.delete('tienda');
+
     history.replaceState({}, '', url);
   }
 
@@ -305,9 +424,13 @@
   });
 
   sortFilter?.addEventListener('change', render);
+
   clearButton?.addEventListener('click', clearFilters);
+
   emptyClearButton?.addEventListener('click', clearFilters);
+
   refreshButton?.addEventListener('click', () => loadCatalog(true));
 
   loadCatalog();
+
 })();
