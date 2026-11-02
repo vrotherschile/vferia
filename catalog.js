@@ -217,6 +217,7 @@
 
       populateBusinessFilter();
       applyInitialBusinessFilter();
+      if (selectedBusinessId && window.VFeriaAnalytics) window.VFeriaAnalytics.trackBusiness(selectedBusinessId);
       render();
 
     } catch (error) {
@@ -314,7 +315,7 @@
       const whatsappUrl = createWhatsAppUrl(product);
 
       return `
-        <article class="catalog-product">
+        <article class="catalog-product" data-product-id="${esc(product.productId || '')}">
 
           <div class="catalog-product-image-wrap">
             ${image
@@ -405,6 +406,15 @@
 
     history.replaceState({}, '', url);
   }
+
+  grid?.addEventListener('click', event => {
+    if (event.target.closest('a,button')) return;
+    const card = event.target.closest('.catalog-product');
+    if (!card || !window.VFeriaAnalytics) return;
+    const index = Array.from(grid.children).indexOf(card);
+    const product = allProducts.find(p => String(p.productId) === String(card.dataset.productId));
+    if (product) window.VFeriaAnalytics.trackProduct(product.businessId, product.productId);
+  });
 
   searchInput?.addEventListener('input', render);
 

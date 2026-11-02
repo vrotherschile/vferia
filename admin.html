@@ -57,6 +57,7 @@
     input:hover { border-color: #53658b; }
     input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(8,189,245,.12); }
     input::placeholder { color: #71809d; }
+    .analytics-panel{margin:0 0 30px;padding:22px;border:1px solid #34425f;border-radius:12px;background:#10182b}.analytics-panel h2{margin:0 0 8px;font-size:22px}.analytics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}.analytics-card{padding:16px;border:1px solid #34425f;border-radius:10px;background:#0b1223}.analytics-card strong{display:block;font-size:28px;color:#8bdcff}.analytics-card span{font-size:12px;color:var(--muted)}.analytics-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.analytics-list{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:13px;line-height:1.9}.analytics-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.analytics-actions button{padding:9px 14px;border-radius:8px;border:1px solid var(--border);background:#1b2944;color:var(--text);cursor:pointer}.analytics-note{color:var(--muted);font-size:12px;line-height:1.5}@media(max-width:560px){.analytics-grid{grid-template-columns:1fr}.analytics-columns{grid-template-columns:1fr}}
     .help-text { margin: 22px 0 18px; color: #a6b3cc; font-size: 12px; line-height: 1.65; }
     #createButton {
       min-height: 44px; padding: 12px 20px; color: #fff;
@@ -90,6 +91,8 @@
 
     <p id="checkingMessage" role="status" aria-live="polite">Verificando sesión de administrador…</p>
 
+<section id="analyticsPanel" class="analytics-panel" hidden aria-live="polite"><div class="analytics-actions"><div style="flex:1"><p class="eyebrow">VFeria · Métricas</p><h2>Estadísticas de visitas</h2></div><button id="refreshAnalytics" type="button">Actualizar</button></div><p id="analyticsStatus" class="analytics-note">Cargando estadísticas…</p><div class="analytics-grid"><div class="analytics-card"><strong id="adminStatTotal">—</strong><span>Visitas totales</span></div><div class="analytics-card"><strong id="adminStatToday">—</strong><span>Visitas hoy</span></div><div class="analytics-card"><strong id="adminStatMonth">—</strong><span>Este mes</span></div></div><div class="analytics-columns"><div><h3>Emprendimientos más visitados</h3><ol id="businessRanking" class="analytics-list"></ol></div><div><h3>Productos más visitados</h3><ol id="productRanking" class="analytics-list"></ol></div></div><p class="analytics-note">Se contabilizan páginas vistas y aperturas de tiendas/productos. La deduplicación utiliza una ventana de 30 minutos por sesión y entidad.</p></section>
+    
     <form id="adminCreateForm" hidden>
       <div class="form-grid">
         <div class="field">

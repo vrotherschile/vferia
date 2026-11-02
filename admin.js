@@ -12,6 +12,8 @@
   const button = document.querySelector('#createButton');
   const checking = document.querySelector('#checkingMessage');
   const pageError = document.querySelector('#pageError');
+  const analyticsPanel = document.querySelector('#analyticsPanel');
+  const analyticsStatus = document.querySelector('#analyticsStatus');
 
   if (!form || !status || !button || !checking || !pageError) {
     console.error(
@@ -50,6 +52,10 @@
     pageError.hidden = false;
   }
 
+  function formatNumber(value){return Number(value||0).toLocaleString('es-CL');}
+  function fillRanking(id,items){const el=document.getElementById(id);if(!el)return;el.innerHTML='';(items||[]).forEach(item=>{const li=document.createElement('li');li.textContent=(item.name||item.id)+' — '+formatNumber(item.views);el.appendChild(li);});if(!el.children.length){const li=document.createElement('li');li.textContent='Todavía no hay visitas registradas.';el.appendChild(li);}}
+  async function loadAnalytics(token){if(analyticsStatus)analyticsStatus.textContent='Actualizando estadísticas…';try{const data=await api('getAdminAnalytics',{token});if(!data||!data.ok)throw new Error(data?.error||'ANALYTICS_UNAVAILABLE');document.getElementById('adminStatTotal').textContent=formatNumber(data.total);document.getElementById('adminStatToday').textContent=formatNumber(data.today);document.getElementById('adminStatMonth').textContent=formatNumber(data.monthly);fillRanking('businessRanking',data.businesses);fillRanking('productRanking',data.products);if(analyticsStatus)analyticsStatus.textContent='Datos actualizados: '+new Date(data.updatedAt).toLocaleString('es-CL');}catch(error){console.error('VFeria analytics:',error);if(analyticsStatus)analyticsStatus.textContent='No se pudieron cargar las estadísticas. Verifica que hayas actualizado Code.gs y desplegado una nueva versión del API.';}}
+
   async function init() {
     const token = sessionStorage.getItem(TOKEN_KEY);
 
@@ -87,6 +93,8 @@
 
       checking.hidden = true;
       form.hidden = false;
+      if (analyticsPanel) { analyticsPanel.hidden = false; loadAnalytics(token); }
+      document.querySelector('#refreshAnalytics')?.addEventListener('click', () => loadAnalytics(token));
 
     } catch (error) {
       console.error(
