@@ -1,446 +1,53 @@
 (() => {
-  'use strict';
-
-  const API_URL = 'https://script.google.com/macros/s/AKfycbzdKI-wK6Ao08bjpRhH_M_yDeFA7CgnMJuLtrUnIqiEGWYxnzhDWiqZtmYtvShytZE-lQ/exec';
-  const CACHE_KEY = 'vferia_public_catalog_v2';
-  const CACHE_TTL = 10 * 60 * 1000;
-
-  const $ = (selector, root = document) => root.querySelector(selector);
-
-  // Mantener imágenes cuadradas y sin deformaciones.
-  function installSquareProductImageStyles() {
-    if (document.getElementById('vferia-square-product-images')) return;
-
-    const style = document.createElement('style');
-    style.id = 'vferia-square-product-images';
-
-    style.textContent = `
-      #catalogGrid .catalog-product-image-wrap {
-        display: block;
-        position: relative;
-        width: 100%;
-        aspect-ratio: 1 / 1;
-        height: auto;
-        min-height: 0;
-        overflow: hidden;
-        box-sizing: border-box;
-      }
-
-      #catalogGrid img.catalog-product-image {
-        display: block;
-        width: 100%;
-        height: 100%;
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-        object-position: center;
-      }
-
-      #catalogGrid .catalog-product-placeholder {
-        width: 100%;
-        height: 100%;
-        min-height: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-        text-align: center;
-      }
-    `;
-
-    document.head.appendChild(style);
-  }
-
-  installSquareProductImageStyles();
-
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  })[c]);
-
-  const safeUrl = value => {
-    try {
-      const url = new URL(String(value || '').trim());
-      return url.protocol === 'https:' ? url.href : '';
-    } catch {
-      return '';
+'use strict';
+const API='https://script.google.com/macros/s/AKfycbzdKI-wK6Ao08bjpRhH_M_yDeFA7CgnMJuLtrUnIqiEGWYxnzhDWiqZtmYtvShytZE-lQ/exec';const CACHE='vferia_public_catalog_v3';const TTL=10*60*1000;const $=s=>document.querySelector(s);const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);const safe=v=>{try{const u=new URL(String(v||''));return u.protocol==='https:'?u.href:''}catch{return ''}};const money=v=>Number(v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
+function wa(p){let n=String(p.businessWhatsapp||p.businessPhone||p.phone||'').replace(/\D/g,'');if(n.length===9&&n[0]==='9')n='56'+n;const m=encodeURIComponent(`Hola, vi este ${p.type==='servicio'?'servicio':'producto'} en VFeria y quisiera más información.\n\n${p.name||'Oferta'}\nEmprendimiento: ${p.businessName||''}`);return n?`https://wa.me/${n}?text=${m}`:`https://wa.me/?text=${m}`}
+function yt(u){try{const x=new URL(u);if(x.hostname.includes('youtu.be'))return 'https://www.youtube.com/embed/'+x.pathname.slice(1).split('/')[0];const id=x.searchParams.get('v');return id?'https://www.youtube.com/embed/'+id:''}catch{return ''}}
+const params=new URLSearchParams(location.search),requested=params.get('tienda')||'';const search=$('#catalogSearch'),businessFilter=$('#businessFilter'),typeFilter=$('#typeFilter'),sortFilter=$('#sortFilter'),grid=$('#catalogGrid'),status=$('#catalogStatus'),empty=$('#catalogEmpty');let businesses=[],products=[],selected=requested;
+async function load(force=false){
+  status.textContent='Cargando catálogo…';
+  try{
+    let d=null;
+    if(!force){
+      try{
+        const c=JSON.parse(localStorage.getItem(CACHE)||'null');
+        if(c&&Date.now()-c.savedAt<TTL)d=c.data;
+      }catch{}
     }
-  };
-
-  const money = value => Number(value || 0).toLocaleString('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
-    maximumFractionDigits: 0
-  });
-
-  // Normaliza el número de WhatsApp.
-  function normalizeWhatsAppNumber(value) {
-    let number = String(value || '').replace(/\D/g, '');
-
-    if (!number) return '';
-
-    // Si es un celular chileno sin código de país, agrega 56.
-    if (number.length === 9 && number.startsWith('9')) {
-      number = '56' + number;
-    }
-
-    return number;
-  }
-
-  // Genera siempre un enlace funcional de WhatsApp.
-  function createWhatsAppUrl(product) {
-    const phone = normalizeWhatsAppNumber(
-      product.businessWhatsapp ||
-      product.businessPhone ||
-      product.whatsapp ||
-      product.phone ||
-      ''
-    );
-
-    const message = [
-      'Hola, vi este producto en VFeria y quisiera más información.',
-      '',
-      'Producto: ' + (product.name || 'Producto'),
-      'Emprendimiento: ' + (product.businessName || 'Emprendimiento'),
-      'Precio: ' + money(product.price)
-    ].join('\n');
-
-    const encodedMessage = encodeURIComponent(message);
-
-    // Si existe el número del vendedor, abre su conversación.
-    if (phone) {
-      return `https://wa.me/${phone}?text=${encodedMessage}`;
-    }
-
-    // Si no existe número, permite compartir el producto por WhatsApp.
-    return `https://wa.me/?text=${encodedMessage}`;
-  }
-
-  const params = new URLSearchParams(location.search);
-  const requestedBusinessId = params.get('tienda') || '';
-
-  const searchInput = $('#catalogSearch');
-  const businessFilter = $('#businessFilter');
-  const sortFilter = $('#sortFilter');
-  const grid = $('#catalogGrid');
-  const status = $('#catalogStatus');
-  const empty = $('#catalogEmpty');
-  const clearButton = $('#clearFilters');
-  const emptyClearButton = $('#emptyClear');
-  const refreshButton = $('#refreshCatalog');
-
-  let businesses = [];
-  let allProducts = [];
-  let selectedBusinessId = requestedBusinessId;
-
-  async function loadCatalog(forceRefresh = false) {
-    status.textContent = 'Cargando catálogo…';
-
-    try {
-      let data = null;
-
-      if (!forceRefresh) {
-        try {
-          const cached = JSON.parse(
-            localStorage.getItem(CACHE_KEY) || 'null'
-          );
-
-          if (cached && Date.now() - cached.savedAt < CACHE_TTL) {
-            data = cached.data;
-          }
-        } catch {
-          // Si la caché no es válida, se consulta la API.
-        }
-      }
-
-      if (!data) {
-        const response = await fetch(
-          `${API_URL}?action=publicCatalog`,
-          {
-            method: 'GET',
-            cache: 'no-store'
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('HTTP_' + response.status);
-        }
-
-        data = await response.json();
-
-        if (!data?.ok || !Array.isArray(data.businesses)) {
-          throw new Error(data?.error || 'CATALOG_UNAVAILABLE');
-        }
-
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify({
-            savedAt: Date.now(),
-            data
-          }));
-        } catch {
-          // El catálogo sigue funcionando sin caché.
-        }
-      }
-
-      businesses = data.businesses || [];
-
-      allProducts = businesses.flatMap(business =>
-        (business.products || []).map(product => ({
-          ...product,
-
-          businessId: product.businessId || business.businessId,
-          businessName: business.businessName || 'Emprendimiento',
-          businessCategory: business.category || '',
-          businessCity: business.city || '',
-          businessLogo: business.logoUrl || '',
-
-          // Datos de contacto del emprendimiento.
-          businessWhatsapp:
-            business.whatsapp ||
-            business.whatsappNumber ||
-            business.phone ||
-            business.telephone ||
-            product.businessWhatsapp ||
-            product.whatsapp ||
-            '',
-
-          businessPhone:
-            business.phone ||
-            business.telephone ||
-            product.businessPhone ||
-            ''
-        }))
-      );
-
-      populateBusinessFilter();
-      applyInitialBusinessFilter();
-      if (selectedBusinessId && window.VFeriaAnalytics) window.VFeriaAnalytics.trackBusiness(selectedBusinessId);
-      render();
-
-    } catch (error) {
-      console.error('Error al cargar catálogo VFeria:', error);
-
-      status.textContent =
-        'No se pudo cargar el catálogo. Intenta actualizarlo.';
-
-      grid.innerHTML = '';
-      empty.hidden = false;
-    }
-  }
-
-  function populateBusinessFilter() {
-    if (!businessFilter) return;
-
-    businessFilter.innerHTML =
-      '<option value="">Todos los emprendimientos</option>';
-
-    businesses.forEach(business => {
-      const option = document.createElement('option');
-
-      option.value = business.businessId;
-      option.textContent = business.businessName || 'Emprendimiento';
-
-      businessFilter.appendChild(option);
-    });
-  }
-
-  function applyInitialBusinessFilter() {
-    if (!businessFilter || !requestedBusinessId) return;
-
-    const exists = businesses.some(
-      business =>
-        String(business.businessId) === String(requestedBusinessId)
-    );
-
-    if (exists) {
-      selectedBusinessId = requestedBusinessId;
-      businessFilter.value = requestedBusinessId;
-    } else {
-      selectedBusinessId = '';
-      businessFilter.value = '';
-
-      status.textContent =
-        'La tienda solicitada no está publicada o no existe.';
-    }
-  }
-
-  function render() {
-    const query = String(searchInput?.value || '')
-      .trim()
-      .toLowerCase();
-
-    let filtered = allProducts.filter(product => {
-      const matchesBusiness = !selectedBusinessId ||
-        String(product.businessId) === String(selectedBusinessId);
-
-      const searchable = [
-        product.name,
-        product.description,
-        product.businessName,
-        product.businessCategory,
-        product.businessCity
-      ].join(' ').toLowerCase();
-
-      return matchesBusiness && searchable.includes(query);
-    });
-
-    const sort = sortFilter?.value || 'relevance';
-
-    if (sort === 'name') {
-      filtered.sort((a, b) =>
-        String(a.name || '').localeCompare(String(b.name || ''), 'es')
-      );
-    } else if (sort === 'priceAsc') {
-      filtered.sort((a, b) =>
-        Number(a.price || 0) - Number(b.price || 0)
-      );
-    } else if (sort === 'priceDesc') {
-      filtered.sort((a, b) =>
-        Number(b.price || 0) - Number(a.price || 0)
-      );
-    }
-
-    grid.innerHTML = filtered.map(product => {
-      const image = safeUrl(product.imageUrl);
-      const paymentUrl = safeUrl(product.paymentLink);
-      const saleUrl = safeUrl(product.link);
-      const socialUrl = safeUrl(product.social);
-
-      const contactUrl = saleUrl || socialUrl;
-
-      // WhatsApp siempre tendrá un enlace.
-      const whatsappUrl = createWhatsAppUrl(product);
-
-      return `
-        <article class="catalog-product" data-product-id="${esc(product.productId || '')}">
-
-          <div class="catalog-product-image-wrap">
-            ${image
-              ? `<img
-                   class="catalog-product-image"
-                   src="${esc(image)}"
-                   alt="${esc(product.name || 'Producto')}"
-                   loading="lazy">`
-              : '<div class="catalog-product-placeholder">Imagen del producto</div>'}
-          </div>
-
-          <div class="catalog-product-body">
-
-            <span class="catalog-business-name">
-              ${esc(product.businessName)}
-            </span>
-
-            <h2>${esc(product.name || 'Producto')}</h2>
-
-            <strong class="catalog-price">
-              ${money(product.price)}
-            </strong>
-
-            <p>
-              ${esc(product.description || 'Consulta los detalles de este producto.')}
-            </p>
-
-            <div class="catalog-product-actions">
-
-              ${paymentUrl
-                ? `<a
-                    class="btn btn-primary"
-                    href="${esc(paymentUrl)}"
-                    target="_blank"
-                    rel="noopener noreferrer nofollow">
-                    Pagar en línea ↗
-                  </a>`
-                : ''}
-
-              <a
-                class="btn btn-outline whatsapp-contact-button"
-                href="${esc(whatsappUrl)}"
-                target="_blank"
-                rel="noopener noreferrer">
-                <span aria-hidden="true">💬</span>
-                Contactar vía WhatsApp
-              </a>
-
-              ${contactUrl
-                ? `<a
-                    class="btn btn-outline"
-                    href="${esc(contactUrl)}"
-                    target="_blank"
-                    rel="noopener noreferrer">
-                    Consultar producto ↗
-                  </a>`
-                : ''}
-
-            </div>
-          </div>
-        </article>`;
-    }).join('');
-
-    if (empty) {
-      empty.hidden = filtered.length > 0;
-    }
-
-    if (status) {
-      status.textContent =
-        `${filtered.length} producto(s) encontrado(s)`;
-    }
-  }
-
-  function clearFilters() {
-    if (searchInput) searchInput.value = '';
-    if (sortFilter) sortFilter.value = 'relevance';
-
-    selectedBusinessId = '';
-
-    if (businessFilter) {
-      businessFilter.value = '';
-    }
-
+    if(!d)d=await (await fetch(API+'?action=publicCatalog',{cache:'no-store'})).json();
+    if(!d.ok)throw Error(d.error||'CATALOG');
+    try{localStorage.setItem(CACHE,JSON.stringify({savedAt:Date.now(),data:d}))}catch{}
+    businesses=d.businesses||[];
+    products=businesses.flatMap(b=>(b.products||[]).map(p=>({
+      ...p,
+      businessId:p.businessId||b.businessId,
+      businessName:b.businessName||'Emprendimiento',
+      businessCategory:b.category||'',
+      businessCity:b.city||'',
+      businessLogo:b.logoUrl||'',
+      businessWhatsapp:b.phone||'',
+      businessWeb:b.businessWeb||'',
+      businessInstagram:b.businessInstagram||'',
+      businessFacebook:b.businessFacebook||'',
+      businessVideoUrl:b.businessVideoUrl||''
+    })));
+    populate();
+    if(requested&&businesses.some(b=>String(b.businessId)===String(requested)))selected=requested;
+    else if(requested)selected='';
+    businessFilter.value=selected;
+    renderStoreBanner();
     render();
-
-    const url = new URL(location.href);
-    url.searchParams.delete('tienda');
-
-    history.replaceState({}, '', url);
+    if(selected&&window.VFeriaAnalytics)window.VFeriaAnalytics.trackBusiness(selected);
+  }catch(e){
+    console.error(e);
+    status.textContent='No se pudo cargar el catálogo.';
+    grid.innerHTML='';
+    empty.hidden=false;
   }
-
-  grid?.addEventListener('click', event => {
-    if (event.target.closest('a,button')) return;
-    const card = event.target.closest('.catalog-product');
-    if (!card || !window.VFeriaAnalytics) return;
-    const index = Array.from(grid.children).indexOf(card);
-    const product = allProducts.find(p => String(p.productId) === String(card.dataset.productId));
-    if (product) window.VFeriaAnalytics.trackProduct(product.businessId, product.productId);
-  });
-
-  searchInput?.addEventListener('input', render);
-
-  businessFilter?.addEventListener('change', () => {
-    selectedBusinessId = businessFilter.value;
-
-    const url = new URL(location.href);
-
-    if (selectedBusinessId) {
-      url.searchParams.set('tienda', selectedBusinessId);
-    } else {
-      url.searchParams.delete('tienda');
-    }
-
-    history.replaceState({}, '', url);
-    render();
-  });
-
-  sortFilter?.addEventListener('change', render);
-
-  clearButton?.addEventListener('click', clearFilters);
-
-  emptyClearButton?.addEventListener('click', clearFilters);
-
-  refreshButton?.addEventListener('click', () => loadCatalog(true));
-
-  loadCatalog();
-
+}
+function populate(){businessFilter.innerHTML='<option value="">Todos los emprendimientos</option>';businesses.forEach(b=>{const o=document.createElement('option');o.value=b.businessId;o.textContent=b.businessName||'Emprendimiento';businessFilter.appendChild(o)})}
+function renderStoreBanner(){const b=businesses.find(x=>String(x.businessId)===String(selected));const box=$('#storeFilterBanner');if(!b){box.hidden=true;return}box.hidden=false;$('#storeFilterTitle').textContent=b.businessName||'Emprendimiento';$('#storeFilterDescription').textContent=[b.category,b.city,b.businessDescription].filter(Boolean).join(' · ');const logo=$('#storeBusinessLogo');if(b.logoUrl){logo.src=b.logoUrl;logo.hidden=false}else logo.hidden=true;const video=$('#storeBusinessVideo');const emb=yt(b.businessVideoUrl);if(emb){video.hidden=false;video.innerHTML=`<iframe src="${esc(emb)}" title="Video de ${esc(b.businessName)}" loading="lazy" allowfullscreen></iframe>`}else{video.hidden=true;video.innerHTML=''};const links=[['storeWhatsapp',wa({businessWhatsapp:b.phone,businessName:b.businessName,type:'producto'}),true],['storeWeb',b.businessWeb,false],['storeInstagram',b.businessInstagram,false],['storeFacebook',b.businessFacebook,false]];links.forEach(([id,url,always])=>{const a=$('#'+id);if(url&&(!always||url)){a.href=url;a.hidden=false}else a.hidden=true});$('#storeProductCount').textContent=`${b.products.length} productos publicados`}
+function render(){const q=(search.value||'').trim().toLowerCase();let f=products.filter(p=>{const biz=!selected||String(p.businessId)===String(selected);const type=!typeFilter.value||p.type===typeFilter.value;const text=[p.name,p.description,p.businessName,p.businessCategory,p.businessCity].join(' ').toLowerCase();return biz&&type&&text.includes(q)});const sort=sortFilter.value||'newest';if(sort==='newest')f.sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));else if(sort==='name')f.sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'));else if(sort==='priceAsc')f.sort((a,b)=>Number(a.price||0)-Number(b.price||0));else if(sort==='priceDesc')f.sort((a,b)=>Number(b.price||0)-Number(a.price||0));status.textContent=`${f.length} resultado${f.length===1?'':'s'}`;empty.hidden=f.length>0;grid.innerHTML=f.map(p=>{const image=safe(p.imageUrl),pay=safe(p.paymentLink),link=safe(p.link),social=safe(p.social);return `<article class="catalog-product" data-product-id="${esc(p.productId)}"><div class="catalog-product-image-wrap">${image?`<img class="catalog-product-image" src="${esc(image)}" alt="${esc(p.name)}" loading="lazy">`:'<div class="catalog-product-placeholder">Imagen no disponible</div>'}</div><div class="catalog-product-body"><div class="catalog-business-chip">${p.businessLogo?`<img src="${esc(p.businessLogo)}" alt="" class="catalog-business-logo">`:''}<span>${esc(p.businessName)}</span></div><h2>${esc(p.name||'Sin nombre')}</h2><span class="catalog-type-badge">${p.type==='servicio'?'SERVICIO':'PRODUCTO'}</span><strong class="catalog-price">${money(p.price)}</strong><p>${esc(p.description||'Consulta los detalles de esta oferta.')}</p><div class="catalog-stock">${Number(p.stock||0)>0?`Disponible: <b>${Number(p.stock).toLocaleString('es-CL')}</b>`:'<b>Agotado</b>'}</div><div class="catalog-product-actions">${pay?`<a class="btn btn-primary" href="${esc(pay)}" target="_blank" rel="noopener nofollow">Pagar en línea ↗</a>`:''}<a class="btn whatsapp-button" href="${esc(wa(p))}" target="_blank" rel="noopener">WhatsApp ↗</a>${social?`<a class="btn social-button" href="${esc(social)}" target="_blank" rel="noopener">Red social ↗</a>`:''}${link?`<a class="btn btn-outline" href="${esc(link)}" target="_blank" rel="noopener">Ver enlace ↗</a>`:''}</div></div></article>`}).join('');f.forEach(p=>{const card=document.querySelector(`[data-product-id="${CSS.escape(String(p.productId))}"]`);if(card&&window.VFeriaAnalytics){card.addEventListener('click',()=>window.VFeriaAnalytics.trackProduct(p.businessId,p.productId),{once:true})}})}
+function clear(){search.value='';typeFilter.value='';sortFilter.value='newest';selected=requested||'';businessFilter.value=selected;renderStoreBanner();render()}
+businessFilter.onchange=()=>{selected=businessFilter.value;renderStoreBanner();render();if(selected&&window.VFeriaAnalytics)window.VFeriaAnalytics.trackBusiness(selected)};typeFilter.onchange=render;sortFilter.onchange=render;search.oninput=render;$('#clearFilters').onclick=clear;$('#emptyClear').onclick=clear;$('#refreshCatalog').onclick=()=>load(true);load();
 })();
