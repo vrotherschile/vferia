@@ -1798,8 +1798,9 @@ textarea::placeholder{
   margin:5px 0;
   padding:4px 8px;
   border-radius:999px;
-  background:#eef2f7;
-  color:#526173;
+  background:#15213a;
+  border:1px solid #2e4267;
+  color:#9ddcff;
   font-size:.68rem;
   font-weight:800;
   letter-spacing:.05em
@@ -1940,18 +1941,18 @@ textarea::placeholder{
 }
 
 .social-button{
-  background:#f4f0ff!important;
-  border-color:#cfc4ff!important;
-  color:#4c3a85!important
+  background:#121c33!important;
+  border-color:#3a4d78!important;
+  color:#b9e9ff!important
 }
 
 .store-business-banner{
   padding:26px;
   margin-bottom:20px;
-  border:1px solid #e4e7ec;
+  border:1px solid #283756;
   border-radius:20px;
-  background:#fff;
-  box-shadow:0 10px 30px rgba(15,23,42,.05)
+  background:linear-gradient(120deg,#111e3a,#0e1428);
+  box-shadow:0 18px 45px rgba(0,0,0,.18)
 }
 
 .store-business-brand{
@@ -2002,16 +2003,17 @@ textarea::placeholder{
   align-items:center;
   min-height:40px;
   padding:9px 13px;
-  border:1px solid #d8dee8;
+  border:1px solid #33466d;
   border-radius:10px;
   text-decoration:none;
   font-weight:700;
-  background:#fff
+  background:#101a31;
+  color:#dbe8ff
 }
 
 .store-count{
   font-weight:700;
-  color:#667085;
+  color:#b8c7e2;
   margin-left:auto
 }
 
@@ -2061,7 +2063,7 @@ textarea::placeholder{
 .vf-video-legend{
   max-width:760px;
   margin:0 auto;
-  color:#667085
+  color:#a6b0c8
 }
 
 .vf-featured-slider{
@@ -2127,7 +2129,7 @@ textarea::placeholder{
 .vf-featured-empty{
   padding:20px;
   margin:auto;
-  color:#667085
+  color:#a6b0c8
 }
 
 .footer-stats{
@@ -2684,4 +2686,82 @@ textarea::placeholder{
 
 .catalog-grid{
   align-items:start !important
+}
+
+/* ============================================================
+   VFeria — normalización visual de componentes de interfaz
+   Mantiene fondos blancos únicamente en previews/imágenes que
+   necesitan contraste propio (logos y fotografías).
+   ============================================================ */
+.vf-ui-panel,
+.vf-ui-card,
+.vf-ui-banner{
+  background:linear-gradient(120deg,#111e3a,#0e1428) !important;
+  border:1px solid #283756 !important;
+  color:var(--text) !important;
+}
+
+.store-business-banner h1,
+.store-business-banner h2,
+.store-business-banner h3,
+.store-business-banner p,
+.store-business-banner span,
+.store-business-banner strong{
+  color:inherit;
+}
+
+.store-business-banner .store-count{
+  color:#b8c7e2 !important;
+}
+
+.social-button:hover,
+.social-action:hover{
+  border-color:#12d7f7 !important;
+  background:#162541 !important;
+  color:#f4f7ff !important;
+}
+
+.catalog-type-badge{
+  background:#15213a !important;
+  border:1px solid #2e4267 !important;
+  color:#9ddcff !important;
+}
+
+.vf-featured-card{
+  background:linear-gradient(145deg,#111c35,#0c1325) !important;
+  border-color:#2b3d61 !important;
+}
+
+.vf-featured-copy{
+  color:#f4f7ff;
+}
+
+.vf-featured-copy small,
+.vf-featured-copy span{
+  color:#9eacc5;
+}
+
+.vf-video-title{
+  color:#f4f7ff;
+}
+
+.vf-video-legend{
+  color:#a6b0c8 !important;
+}
+
+/* Contenedores de preview: el fondo oscuro pertenece a la interfaz;
+   el blanco de estas imágenes se conserva deliberadamente. */
+.logo-preview,
+.logo-preview-wide,
+.store-logo,
+.catalog-business-logo{
+  background:#fff;
+}
+
+/* Evita que un contenedor de imagen herede accidentalmente blanco. */
+.p-preview,
+.product-thumb img,
+.store-product-image,
+.vf-featured-image img{
+  background:transparent;
 }
