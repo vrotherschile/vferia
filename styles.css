@@ -2688,13 +2688,11 @@ textarea::placeholder{
   align-items:start !important
 }
 
-
 /* ============================================================
    VFeria — normalización visual de componentes de interfaz
    Mantiene fondos blancos únicamente en previews/imágenes que
    necesitan contraste propio (logos y fotografías).
    ============================================================ */
-
 .vf-ui-panel,
 .vf-ui-card,
 .vf-ui-banner{
@@ -2753,7 +2751,6 @@ textarea::placeholder{
 
 /* Contenedores de preview: el fondo oscuro pertenece a la interfaz;
    el blanco de estas imágenes se conserva deliberadamente. */
-
 .logo-preview,
 .logo-preview-wide,
 .store-logo,
@@ -2762,7 +2759,6 @@ textarea::placeholder{
 }
 
 /* Evita que un contenedor de imagen herede accidentalmente blanco. */
-
 .p-preview,
 .product-thumb img,
 .store-product-image,
@@ -2774,187 +2770,87 @@ textarea::placeholder{
 /* ============================================================
    VFeria — compartir producto + banner promocional del Index
    ============================================================ */
+.share-product-button{background:linear-gradient(135deg,#263b66,#17243f)!important;border-color:#3f5b8f!important;color:#fff!important}
+.share-product-button:hover{border-color:#72e5ff!important;transform:translateY(-1px)}
+.share-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:20px;background:rgba(3,7,16,.78);backdrop-filter:blur(8px)}
+.share-modal[hidden]{display:none}
+.share-dialog{position:relative;width:min(760px,100%);max-height:92vh;overflow:auto;padding:24px;border:1px solid #30466f;border-radius:22px;background:linear-gradient(145deg,#101b33,#0a1120);box-shadow:0 30px 90px rgba(0,0,0,.45)}
+.share-dialog h2{margin:0 40px 6px 0;color:#fff}.share-dialog .muted{color:#9eacc5;line-height:1.6}
+.share-close{position:absolute;right:16px;top:12px;width:40px;height:40px;border:0;border-radius:50%;background:#17243f;color:#fff;font-size:28px;cursor:pointer}
+.share-preview{display:grid;place-items:center;margin:18px auto;padding:12px;border:1px solid #2b3d61;border-radius:16px;background:#070d18;max-width:430px}.share-preview canvas{display:block;width:100%;height:auto;border-radius:10px}.share-status{min-height:22px;color:#72e5ff;text-align:center}.share-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.vf-promo-banner{position:relative;width:min(1200px,calc(100% - 44px));margin:28px auto 0;border:1px solid #2b3d61;border-radius:20px;overflow:hidden;background:#0a1120;box-shadow:0 18px 50px rgba(0,0,0,.22)}
+.vf-promo-banner a{display:block}.vf-promo-banner img{display:block;width:100%;height:auto;max-height:380px;object-fit:cover}.vf-promo-dots{position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:7px}.vf-promo-dots span{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.4)}.vf-promo-dots span.active{background:#72e5ff;box-shadow:0 0 12px rgba(114,229,255,.7)}
+@media(max-width:700px){.vf-promo-banner{width:calc(100% - 28px);margin-top:18px}.vf-promo-banner img{max-height:260px}.share-dialog{padding:18px}.share-actions .btn{width:100%}}
 
-.share-product-button{
-  background:linear-gradient(135deg,#263b66,#17243f)!important;
-  border-color:#3f5b8f!important;
-  color:#fff!important
+/* ============================================================
+   VFeria — BANNER PROMOCIONAL
+   Imagen recomendada: 1600 × 800 px
+   Proporción: 2:1
+   ============================================================ */
+
+.vf-promo-banner {
+  position: relative;
+  width: min(1200px, calc(100% - 44px));
+  margin: 28px auto 0;
+  border: 1px solid #2b3d61;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #0a1120;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .22);
 }
 
-.share-product-button:hover{
-  border-color:#72e5ff!important;
-  transform:translateY(-1px)
+.vf-promo-banner a {
+  display: block;
 }
 
-.share-modal{
-  position:fixed;
-  inset:0;
-  z-index:9999;
-  display:grid;
-  place-items:center;
-  padding:20px;
-  background:rgba(3,7,16,.78);
-  backdrop-filter:blur(8px)
+.vf-promo-banner img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  object-fit: contain;
 }
 
-.share-modal[hidden]{
-  display:none
+.vf-promo-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+
+  display: flex;
+  justify-content: center;
+  gap: 7px;
 }
 
-.share-dialog{
-  position:relative;
-  width:min(760px,100%);
-  max-height:92vh;
-  overflow:auto;
-  padding:24px;
-  border:1px solid #30466f;
-  border-radius:22px;
-  background:linear-gradient(145deg,#101b33,#0a1120);
-  box-shadow:0 30px 90px rgba(0,0,0,.45)
+.vf-promo-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .4);
 }
 
-.share-dialog h2{
-  margin:0 40px 6px 0;
-  color:#fff
-}
-
-.share-dialog .muted{
-  color:#9eacc5;
-  line-height:1.6
-}
-
-.share-close{
-  position:absolute;
-  right:16px;
-  top:12px;
-  width:40px;
-  height:40px;
-  border:0;
-  border-radius:50%;
-  background:#17243f;
-  color:#fff;
-  font-size:28px;
-  cursor:pointer
-}
-
-.share-preview{
-  display:grid;
-  place-items:center;
-  margin:18px auto;
-  padding:12px;
-  border:1px solid #2b3d61;
-  border-radius:16px;
-  background:#070d18;
-  max-width:430px
-}
-
-.share-preview canvas{
-  display:block;
-  width:100%;
-  height:auto;
-  border-radius:10px
-}
-
-.share-status{
-  min-height:22px;
-  color:#72e5ff;
-  text-align:center
-}
-
-.share-actions{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  justify-content:center
+.vf-promo-dots span.active {
+  background: #72e5ff;
+  box-shadow: 0 0 12px rgba(114, 229, 255, .7);
 }
 
 
 /* ============================================================
-   VFeria — BANNER PROMOCIONAL DEL INDEX
+   BANNER RESPONSIVE
    ============================================================ */
 
-/*
-   Los banners VFeria se diseñan en proporción 2:1.
-   Medida de referencia:
-       1600 x 800 px
+@media (max-width: 700px) {
 
-   No se establece max-height ni object-fit:cover,
-   porque ambas propiedades recortarían la imagen.
-   El navegador conserva automáticamente la proporción
-   original del archivo.
-*/
-
-.vf-promo-banner{
-  position:relative;
-  width:min(1200px,calc(100% - 44px));
-  margin:28px auto 0;
-  border:1px solid #2b3d61;
-  border-radius:20px;
-  overflow:hidden;
-  background:#0a1120;
-  box-shadow:0 18px 50px rgba(0,0,0,.22)
-}
-
-.vf-promo-banner a{
-  display:block
-}
-
-.vf-promo-banner img{
-  display:block;
-  width:100%;
-  height:auto;
-}
-
-.vf-promo-dots{
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:12px;
-  display:flex;
-  justify-content:center;
-  gap:7px
-}
-
-.vf-promo-dots span{
-  width:7px;
-  height:7px;
-  border-radius:50%;
-  background:rgba(255,255,255,.4)
-}
-
-.vf-promo-dots span.active{
-  background:#72e5ff;
-  box-shadow:0 0 12px rgba(114,229,255,.7)
-}
-
-
-/* ============================================================
-   BANNER PROMOCIONAL — RESPONSIVE
-   ============================================================ */
-
-@media(max-width:700px){
-
-  .vf-promo-banner{
-    width:calc(100% - 28px);
-    margin-top:18px
+  .vf-promo-banner {
+    width: calc(100% - 28px);
+    margin-top: 18px;
   }
 
-  /*
-     No se limita la altura.
-     La imagen mantiene siempre su relación 2:1.
-  */
-
-  .vf-promo-banner img{
-    width:100%;
-    height:auto;
-  }
-
-  .share-dialog{
-    padding:18px
-  }
-
-  .share-actions .btn{
-    width:100%
+  .vf-promo-banner img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 1;
+    object-fit: contain;
   }
 
 }
