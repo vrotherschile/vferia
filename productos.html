@@ -2,4 +2,21 @@
 <section id="storeFilterBanner" class="store-business-banner" hidden aria-live="polite"><div class="store-business-brand"><img id="storeBusinessLogo" alt="Logo del emprendimiento" hidden><div><span class="eyebrow">EMPRENDIMIENTO</span><h1 id="storeFilterTitle">Catálogo</h1><p id="storeFilterDescription"></p></div></div><div id="storeBusinessVideo" class="store-business-video" hidden></div><div class="store-business-links"><a id="storeWhatsapp" class="social-action whatsapp-action" target="_blank" rel="noopener" hidden>WhatsApp ↗</a><a id="storeWeb" class="social-action" target="_blank" rel="noopener" hidden>Web ↗</a><a id="storeInstagram" class="social-action" target="_blank" rel="noopener" hidden>Instagram ↗</a><a id="storeFacebook" class="social-action" target="_blank" rel="noopener" hidden>Facebook ↗</a><span id="storeProductCount" class="store-count"></span></div><a id="showAllCatalog" href="productos.html" class="text-link">Ver todos los productos →</a></section>
 <section class="catalog-tools" aria-label="Filtros del catálogo"><div class="catalog-search-row"><label class="catalog-search-label" for="catalogSearch">Buscar productos o servicios</label><input id="catalogSearch" type="search" placeholder="Ej.: artesanía, asesoría, ropa…" autocomplete="off"></div><div class="catalog-filters"><label>Emprendimiento<select id="businessFilter"><option value="">Todos los emprendimientos</option></select></label><label>Tipo<select id="typeFilter"><option value="">Productos y servicios</option><option value="producto">Productos</option><option value="servicio">Servicios</option></select></label><label>Ordenar<select id="sortFilter"><option value="newest">Producto nuevo</option><option value="relevance">Relevancia</option><option value="name">Nombre A–Z</option><option value="priceAsc">Precio: menor a mayor</option><option value="priceDesc">Precio: mayor a menor</option></select></label><button id="clearFilters" class="btn btn-outline" type="button">Limpiar filtros</button></div><div class="catalog-result-row"><p id="catalogStatus" role="status" aria-live="polite">Cargando catálogo…</p><button id="refreshCatalog" class="catalog-refresh" type="button">Actualizar catálogo</button></div></section>
 <section><div id="catalogGrid" class="catalog-grid" aria-live="polite"></div><div id="catalogEmpty" class="catalog-empty" hidden><h2>No encontramos resultados</h2><p>Prueba con otro término o cambia los filtros.</p><button class="btn btn-outline" id="emptyClear" type="button">Ver todos</button></div></section>
+<section id="shareModal" class="share-modal" hidden aria-modal="true" role="dialog" aria-labelledby="shareTitle">
+  <div class="share-dialog">
+    <button id="shareClose" class="share-close" type="button" aria-label="Cerrar">×</button>
+    <h2 id="shareTitle">Compartir producto</h2>
+    <p class="muted">Genera una pieza promocional con los datos del producto y un QR que lleva directamente a la tienda completa del emprendimiento.</p>
+    <div id="sharePreview" class="share-preview"></div>
+    <p id="shareStatus" class="share-status" role="status"></p>
+    <div class="share-actions">
+      <button id="sharePost" class="btn btn-primary" type="button">1080 × 1350 · Publicación</button>
+      <button id="shareStory" class="btn btn-outline" type="button">1080 × 1920 · Story</button>
+      <button id="shareDownload" class="btn btn-outline" type="button">⬇ Descargar imagen</button>
+      <button id="shareCopyLink" class="btn btn-outline" type="button">🔗 Copiar enlace</button>
+      <button id="shareCopyText" class="btn btn-outline" type="button">📋 Copiar texto</button>
+      <button id="shareNative" class="btn btn-primary" type="button">📤 Compartir</button>
+    </div>
+  </div>
+</section>
 <section class="catalog-note"><b>¿Tienes un emprendimiento?</b><span>Solicita tu acceso para administrar tu catálogo en VFeria.</span><a href="login.html">Entrar al panel →</a></section></main><footer class="footer"><a class="brand footer-brand" href="index.html"><img src="assets/VFeria-logo.png" alt="VFeria"></a><span>Descubre emprendimientos · Productos · Servicios · VFeria</span><a href="index.html">Volver al inicio →</a><small>© 2026 VFeria · Una iniciativa de VRothers</small></footer><script src="analytics.js"></script><script src="catalog.js"></script></body></html>
