@@ -2782,3 +2782,19 @@ textarea::placeholder{
 .vf-promo-banner a{display:block}.vf-promo-banner img{display:block;width:100%;height:auto;max-height:380px;object-fit:cover}.vf-promo-dots{position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:7px}.vf-promo-dots span{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.4)}.vf-promo-dots span.active{background:#72e5ff;box-shadow:0 0 12px rgba(114,229,255,.7)}
 @media(max-width:700px){.vf-promo-banner{width:calc(100% - 28px);margin-top:18px}.vf-promo-banner img{max-height:260px}.share-dialog{padding:18px}.share-actions .btn{width:100%}}
 
+/* ============================================================
+   VFeria — Precio en productos destacados
+   ============================================================ */
+
+.vf-featured-price{
+  display:block;
+  margin-top:7px;
+  color:#72e5ff;
+  font-size:1rem;
+  font-weight:800;
+  letter-spacing:.01em;
+}
+
+.vf-featured-copy .vf-featured-price + span{
+  margin-top:3px;
+}
