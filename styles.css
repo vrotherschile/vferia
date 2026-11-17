@@ -2992,3 +2992,22 @@ textarea::placeholder{
 .dashboard-page .panel-section-note{
   color:#8e9db8 !important;
 }
+
+/* Cámara de SKU y código de barras */
+.camera-field{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:8px;align-items:stretch}
+.camera-field-btn{width:44px;height:42px;border:1px solid #344566;border-radius:10px;background:#0a1122;color:#fff;cursor:pointer;font-size:1rem;display:grid;place-items:center;transition:.2s ease}
+.camera-field-btn:hover{border-color:#2dd4ff;box-shadow:0 0 0 3px rgba(45,212,255,.10)}
+.camera-modal{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:20px;background:rgba(3,7,16,.86);backdrop-filter:blur(10px)}
+.camera-modal[hidden]{display:none}
+.camera-dialog{width:min(620px,100%);background:#0d162b;border:1px solid #2b3d62;border-radius:18px;padding:16px;box-shadow:0 24px 80px rgba(0,0,0,.45)}
+.camera-head{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:12px}
+.camera-head b{display:block;color:#fff;font-size:1.05rem}
+.camera-head small{display:block;color:#91a4c7;margin-top:4px}
+.camera-close{border:1px solid #344566;background:#111b31;color:#fff;width:38px;height:38px;border-radius:10px;font-size:1.4rem;cursor:pointer}
+.camera-stage{position:relative;overflow:hidden;border-radius:14px;background:#050a14;aspect-ratio:16/10;border:1px solid #263754}
+.camera-stage video{width:100%;height:100%;object-fit:cover;display:block}
+.camera-frame{position:absolute;left:12%;right:12%;top:30%;height:40%;border:2px solid #2dd4ff;border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.22)}
+.camera-status{min-height:22px;color:#b7c6df;font-size:.9rem;margin:11px 2px}
+.camera-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+#barcodeReaderHidden{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important}
+@media(max-width:620px){.camera-modal{padding:10px}.camera-dialog{padding:12px}.camera-stage{aspect-ratio:4/5}.camera-frame{left:8%;right:8%;top:28%;height:44%}.camera-actions .btn{flex:1;min-width:130px}}
